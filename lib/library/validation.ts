@@ -1,0 +1,3 @@
+import { z } from "zod";
+export const categories = { past_paper: "Past paper", study_notes: "Study notes", textbook: "Textbook", revision: "Revision", other: "Other" } as const;
+export const librarySchema = z.object({ title: z.string().trim().min(2).max(200), description: z.string().max(2000), category: z.enum(["past_paper","study_notes","textbook","revision","other"]), course_id: z.union([z.string().uuid(),z.literal("")]), audience: z.enum(["all_students","course_students"]), reason: z.string().trim().min(5).max(2000), content_text: z.string().max(100000) }).refine(data => data.audience !== "course_students" || Boolean(data.course_id), { message: "Choose a course for course-only access." });

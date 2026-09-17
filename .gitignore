@@ -41,11 +41,14 @@ next-env.d.ts
 /.wrangler/
 # Checkout-local execution profile and tool state; never publish them.
 /.sites-runtime/
-/.openai/
 /.agents/
 /.codex/
 /outputs/
 /work/
+
+# Keep the required hosting config tracked for clean deployment checkouts.
+!.openai/
+!.openai/hosting.json
 
 # Legacy local configuration filename
 env.local

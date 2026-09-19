@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin/access";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ManagedForm } from "@/components/admissions/managed-form";
@@ -37,15 +36,15 @@ export default async function UniversityStructurePage() {
   ];
   const universityName = (id?: string) => universityRows.find(row => row.id === id)?.name ?? "Unknown university";
   const facultyName = (id?: string) => facultyRows.find(row => row.id === id)?.name ?? "Unknown faculty";
-  return <main className="account-content"><Link href="/portal/home/admin">Admin overview</Link><h1>Universities</h1>
-    <p>Manage each university&rsquo;s campuses, faculties and departments. Programmes and courses are managed separately under Academic configuration.</p>
+  return <div className="dash">
+    <div className="dash-title"><div><span className="eyebrow">Administration</span><h1>Universities</h1><p>Manage each university&rsquo;s campuses, faculties and departments. Programmes and courses are managed separately under Academic configuration.</p></div></div>
     {!universityRows.length && <p>Add a university under Academic configuration before configuring its structure.</p>}
-    {universityRows.length > 0 && groups.map(group => <section className="account-panel" key={group.kind}><h2>{group.title}</h2>
+    {universityRows.length > 0 && <div className="dashgrid">{groups.map(group => <div className="panel" key={group.kind}><header><h2>{group.title}</h2></header>
       <details><summary>Create {group.kind}</summary><StructureForm kind={group.kind} universities={universityRows} faculties={facultyRows}/></details>
       {!group.rows.length && <p>None yet.</p>}
       <div className="academic-records">{group.rows.map(row => <details key={row.id}><summary>{row.name} ({row.code}) · {row.active ? "Active" : "Inactive"} · {group.kind === "department" ? facultyName(row.faculty_id) : universityName(row.university_id)}</summary>
         <StructureForm kind={group.kind} universities={universityRows} faculties={facultyRows} entity={row}/>
       </details>)}</div>
-    </section>)}
-  </main>;
+    </div>)}</div>}
+  </div>;
 }

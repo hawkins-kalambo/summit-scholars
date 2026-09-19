@@ -1,3 +1,3 @@
 export default function Loading() {
-  return <main className="account-content" role="status">Loading your account…</main>;
+  return <div className="dash" role="status">Loading your account…</div>;
 }

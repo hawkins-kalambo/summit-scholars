@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { requireAccount } from "@/lib/auth/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ManagedForm } from "@/components/admissions/managed-form";
@@ -12,22 +11,25 @@ export default async function ProfilePage() {
     .eq("applicant_id", account.user.id).eq("status", "approved")
     .order("decided_at", { ascending: false }).limit(1).maybeSingle();
   const placement = application as unknown as { year_of_study: number; learning_mode: string; universities: { name: string } | null; programmes: { name: string } | null } | null;
-  return <main className="account-content"><Link href="/portal">← My account</Link><h1>My profile</h1>
-    <section className="account-panel"><h2>Personal details</h2>
-      <ManagedForm action={updateProfile} label="Save changes">
-        <label>Full name<input name="fullName" required minLength={2} maxLength={120} defaultValue={account.fullName}/></label>
-        <label>Phone<input name="phone" type="tel" maxLength={20} defaultValue={account.phone ?? ""}/></label>
-      </ManagedForm>
-    </section>
-    <section className="account-panel"><h2>Account</h2>
-      <p>Email: {account.user.email}</p>
-      {account.studentNumber && <p>Student number: {account.studentNumber}</p>}
-      {placement && <p>{placement.programmes?.name ?? "Unknown programme"} at {placement.universities?.name ?? "Unknown university"} · Year {placement.year_of_study} · {placement.learning_mode === "online" ? "Online" : "Face-to-face"}</p>}
-    </section>
-    <section className="account-panel"><h2>Password</h2>
-      <ManagedForm action={changePassword} label="Update password">
-        <label>New password<input name="password" type="password" required minLength={12} maxLength={128}/></label>
-      </ManagedForm>
-    </section>
-  </main>;
+  return <div className="dash">
+    <div className="dash-title"><div><span className="eyebrow">Account</span><h1>My profile</h1><p>Manage your personal details, contact number and password.</p></div></div>
+    <div className="dashgrid">
+      <div className="panel"><header><h2>Personal details</h2></header>
+        <ManagedForm action={updateProfile} label="Save changes">
+          <label>Full name<input name="fullName" required minLength={2} maxLength={120} defaultValue={account.fullName}/></label>
+          <label>Phone<input name="phone" type="tel" maxLength={20} defaultValue={account.phone ?? ""}/></label>
+        </ManagedForm>
+      </div>
+      <div className="panel"><header><h2>Account</h2></header>
+        <p>Email: {account.user.email}</p>
+        {account.studentNumber && <p>Student number: {account.studentNumber}</p>}
+        {placement && <p>{placement.programmes?.name ?? "Unknown programme"} at {placement.universities?.name ?? "Unknown university"} · Year {placement.year_of_study} · {placement.learning_mode === "online" ? "Online" : "Face-to-face"}</p>}
+      </div>
+      <div className="panel"><header><h2>Password</h2></header>
+        <ManagedForm action={changePassword} label="Update password">
+          <label>New password<input name="password" type="password" required minLength={12} maxLength={128}/></label>
+        </ManagedForm>
+      </div>
+    </div>
+  </div>;
 }

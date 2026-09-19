@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAdmissionsSettings, getCatalogue, requireAdmissionsAccount } from "@/lib/admissions/data";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -30,10 +29,8 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   const canReview = !own && account.status === "active" && account.roles.some(role => ["super_admin","admissions_officer"].includes(role));
   const canApprove = !own && account.status === "active" && account.roles.some(role => ["super_admin","academic_admin"].includes(role));
   const fields = <><input type="hidden" name="applicationId" value={id}/><input type="hidden" name="revision" value={application.revision}/></>;
-  return <main className="account-content">
-    <Link href="/portal/applications">← Applications</Link>
-    <div className="section-title"><h1>{application.full_name}</h1><span className="status-badge">{application.status.replaceAll("_"," ")}</span></div>
-    <p className="reference">Reference: {id}</p>
+  return <div className="dash">
+    <div className="dash-title"><div><span className="eyebrow">Admissions</span><h1>{application.full_name}</h1><p className="reference">Reference: {id}</p></div><span className="status-badge">{application.status.replaceAll("_"," ")}</span></div>
     {application.status === "approved" && <p className="form-success">Admission approved. Your account is active; admissions will confirm your course arrangements.</p>}
     <div className="application-columns"><div>
       <section className="account-panel"><h2>Application details</h2>
@@ -69,5 +66,5 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
       <section className="account-panel"><h2>Application history</h2><ol className="history-list">{(history.data ?? []).map(event => <li key={event.id}><strong>{event.event.replaceAll("_"," ")}</strong><time>{new Date(event.created_at).toLocaleString("en-GB", { timeZone:"Africa/Blantyre" })}</time>{event.note && <p>{event.note}</p>}</li>)}</ol></section>
       {application.consent_notice && <details className="account-panel"><summary>Privacy notice accepted at submission</summary><p className="privacy-notice">{application.consent_notice}</p></details>}
     </aside></div>
-  </main>;
+  </div>;
 }

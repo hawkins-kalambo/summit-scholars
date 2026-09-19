@@ -20,6 +20,7 @@ export function PortalShell({ navItems, fullName, roleLine, children }: { navIte
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   return <div className="shell">
+    {open && <button type="button" className="side-backdrop" onClick={() => setOpen(false)} aria-label="Close menu"/>}
     <aside className={open ? "side open" : "side"}>
       <div className="sidehead">
         <Link className="brand" href="/" onClick={() => setOpen(false)}><span className="peak">▲</span><span><b>Summit ScholarsBridge</b><small>Academic Solutions</small></span></Link>

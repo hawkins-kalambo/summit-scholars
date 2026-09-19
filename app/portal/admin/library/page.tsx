@@ -28,7 +28,8 @@ export default async function LibraryAdmin({ searchParams }: { searchParams: Pro
   const [resources,courses] = await Promise.all([query,db.from("courses").select("id,name").order("name")]);
   if (resources.error || courses.error) throw new Error("Library management unavailable. Apply the Admin and Library migration first.");
   const link = (n: number) => "/portal/admin/library?" + new URLSearchParams({ status, page: String(n) });
-  return <main className="account-content"><Link href="/portal/home/admin">Admin overview</Link><h1>Library management</h1><p>Upload past papers, textbooks and study materials, or paste notes for students to read in the portal.</p>
+  return <div className="dash">
+    <div className="dash-title"><div><span className="eyebrow">Administration</span><h1>Library management</h1><p>Upload past papers, textbooks and study materials, or paste notes for students to read in the portal.</p></div></div>
     <p>Files are private. The reader has no download or print controls; viewing cannot prevent screenshots or determined copying. Upload materials you are permitted to share.</p>
     <details className="account-panel"><summary>Add a resource</summary><ResourceForm courses={courses.data ?? []}/></details>
     <form className="admin-search"><label>Publication status<select name="status" defaultValue={status}><option value="">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label><button className="btn teal">Filter</button></form>
@@ -38,5 +39,5 @@ export default async function LibraryAdmin({ searchParams }: { searchParams: Pro
       <details><summary>Publish or withdraw</summary><ManagedForm action={publishResource} label="Update publication"><input type="hidden" name="id" value={resource.id}/><input type="hidden" name="revision" value={resource.revision}/><label>Status<select name="status" defaultValue={resource.status}><option value="draft">Draft (hidden)</option><option value="published">Published</option><option value="archived">Archived (hidden)</option></select></label><label>Reason<textarea name="reason" required minLength={5} maxLength={2000}/></label></ManagedForm></details>
     </section>)}
     <nav className="pagination" aria-label="Library management pages">{page>1 && <Link href={link(page-1)}>Previous</Link>}<span>Page {page}</span>{(resources.count ?? 0)>page*20 && <Link href={link(page+1)}>Next</Link>}</nav>
-  </main>;
+  </div>;
 }

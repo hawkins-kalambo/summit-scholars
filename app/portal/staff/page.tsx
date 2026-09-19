@@ -12,8 +12,8 @@ export default async function StaffPage() {
   const db = await createSupabaseServerClient();
   const { data, error } = await db.from("staff_access_requests").select("id,target_id,target_email,role,operation,reason,requested_by,status,decision_reason,created_at").order("created_at", { ascending: false }).limit(100);
   if (error) throw new Error("Unable to load staff access requests.");
-  return <main className="account-content"><h1>Staff access</h1>
-    <p>Staff first register and verify their email. An administrator requests access, then a separate Super Administrator approves it.</p>
+  return <div className="dash">
+    <div className="dash-title"><div><span className="eyebrow">Staff</span><h1>Staff access</h1><p>Staff first register and verify their email. An administrator requests access, then a separate Super Administrator approves it.</p></div></div>
     {manager && <section className="account-card"><h2>Request an access change</h2><ManagedForm action={requestStaffAccess} label="Submit request">
       <label>Verified account email<input name="email" type="email" required maxLength={254} /></label>
       <label>Staff role<select name="role">{roles.filter(role => role !== "student").map(role => <option key={role} value={role}>{roleLabels[role]}</option>)}</select></label>
@@ -30,5 +30,5 @@ export default async function StaffPage() {
         <label>Decision reason<textarea name="reason" required minLength={5} maxLength={2000} /></label>
       </ManagedForm>}
     </section>)}
-  </main>;
+  </div>;
 }

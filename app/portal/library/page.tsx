@@ -13,11 +13,12 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
   if (category) query = query.eq("category",category); if (q) query = query.ilike("title","%"+q+"%");
   const { data,error,count } = await query; if (error) throw new Error("The library is temporarily unavailable.");
   const link = (n: number) => "/portal/library?" + new URLSearchParams({ q, category, page: String(n) });
-  return <main className="account-content"><Link href="/portal">Portal home</Link><h1>Student library</h1><p>Read past papers, notes and study materials in your portal.</p>
+  return <div className="dash">
+    <div className="dash-title"><div><span className="eyebrow">Library</span><h1>Student library</h1><p>Read past papers, notes and study materials in your portal.</p></div></div>
     {!account.studentNumber && !account.roles.some(role => ["super_admin","academic_admin"].includes(role)) && <p>Library access becomes available after your admission is approved.</p>}
     <form className="admin-search"><label>Search title<input name="q" defaultValue={q} maxLength={100}/></label><label>Category<select name="category" defaultValue={category}><option value="">All materials</option>{Object.entries(categories).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label><button className="btn teal">Search</button></form>
     <div className="workspace-grid">{data?.map(resource => <Link className="account-panel" key={resource.id} href={"/portal/library/"+resource.id}><span className="eyebrow">{categories[resource.category as keyof typeof categories]}</span><h2>{resource.title}</h2><p>{resource.description}</p><span>Read in portal</span></Link>)}</div>
     {!data?.length && <p>No materials available for your account with these filters.</p>}
     <nav className="pagination" aria-label="Library pages">{page>1 && <Link href={link(page-1)}>Previous</Link>}<span>Page {page}</span>{(count ?? 0)>page*20 && <Link href={link(page+1)}>Next</Link>}</nav>
-  </main>;
+  </div>;
 }

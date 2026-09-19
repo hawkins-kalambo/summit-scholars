@@ -1,6 +1,6 @@
 # Summit ScholarsBridge
 
-Academic support portal built with React/Vinext, Supabase Auth/PostgreSQL/private storage and Resend email.
+Academic support portal built with Next.js/React, Supabase Auth/PostgreSQL/private storage and Resend email.
 
 ## Implemented so far
 - Verified accounts, login, recovery and protected role workspaces.
@@ -18,18 +18,17 @@ Node.js >=22.13.0 is required. Use npm and package-lock.json.
 2. Follow docs/SUPABASE_RESEND_SETUP.md.
 3. Copy .env.example to .env.local and configure the providers.
 4. Apply all five Supabase migrations in order; optionally load supabase/seed.sql.
-5. Run npm run dev (default port 5173).
+5. Run npm run dev (default port 3000).
 
 Public pages can be reviewed without credentials. Account forms stay disabled until Supabase is configured.
 An env.local file without the leading dot is not loaded automatically.
-The app retains the Vinext/Cloudflare runtime; starter D1/R2 bindings remain disabled.
 
 ## Validation
 - npm run typecheck
 - npm test
 - npm run lint
 - npm run build
-- npm start: preview the built Worker locally; does not deploy.
+- npm start: serve the production build locally; does not deploy.
 
 Tests do not contact a live Supabase project or send real email.
 

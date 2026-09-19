@@ -34,6 +34,22 @@ export async function publishCourse(_state: FormResult, form: FormData): Promise
   revalidatePath("/portal/academics");
   return { success: "Course publication updated." };
 }
+export async function assignTutor(_state: FormResult, form: FormData): Promise<FormResult> {
+  await requireAcademicManager();
+  const input = z.object({
+    courseId: z.string().uuid(), tutorId: z.string().uuid(), assign: z.enum(["true", "false"]),
+    reason: z.string().trim().min(5).max(2000),
+  }).safeParse(Object.fromEntries(form));
+  if (!input.success) return { error: "Choose a course, tutor and reason." };
+  const db = await createSupabaseServerClient();
+  const { error } = await db.rpc("assign_course_tutor", {
+    p_course_id: input.data.courseId, p_tutor_id: input.data.tutorId,
+    p_assign: input.data.assign === "true", p_reason: input.data.reason,
+  });
+  if (error) return failure(error);
+  revalidatePath("/portal/academics");
+  return { success: "Tutor assignment updated." };
+}
 export async function saveAdmissionsSettings(_state: FormResult, form: FormData): Promise<FormResult> {
   await requireAcademicManager();
   const db = await createSupabaseServerClient();

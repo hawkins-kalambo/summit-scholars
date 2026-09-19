@@ -1,10 +1,25 @@
 import { getAdmissionsSettings, getCatalogue, requireAcademicManager } from "@/lib/admissions/data";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ManagedForm } from "@/components/admissions/managed-form";
-import { publishCourse, saveAcademicRecord, saveAdmissionsSettings } from "./actions";
+import { assignTutor, publishCourse, saveAcademicRecord, saveAdmissionsSettings } from "./actions";
 import type { University } from "@/lib/admissions/validation";
 
 export const dynamic = "force-dynamic";
 type Entity = { id: string; name: string; code?: string; university_id?: string; active?: boolean; description?: string; level?: number; registration_opens?: string; registration_closes?: string };
+type Tutor = { id: string; full_name: string };
+function TutorAssignmentForm({ courseId, tutors, assignedIds }: { courseId: string; tutors: Tutor[]; assignedIds: string[] }) {
+  const available = tutors.filter(tutor => !assignedIds.includes(tutor.id));
+  return <div><h3>Assigned tutors</h3>
+    {assignedIds.length > 0 ? <ul>{assignedIds.map(id => <li key={id}>{tutors.find(tutor => tutor.id === id)?.full_name ?? "Unknown tutor"}
+      <ManagedForm action={assignTutor} label="Remove"><input type="hidden" name="courseId" value={courseId}/><input type="hidden" name="tutorId" value={id}/><input type="hidden" name="assign" value="false"/><label>Reason<textarea name="reason" required minLength={5} maxLength={2000}/></label></ManagedForm>
+    </li>)}</ul> : <p>No tutor assigned yet.</p>}
+    {available.length > 0 && <details><summary>Assign a tutor</summary><ManagedForm action={assignTutor} label="Assign tutor">
+      <input type="hidden" name="courseId" value={courseId}/><input type="hidden" name="assign" value="true"/>
+      <label>Tutor<select name="tutorId" required><option value="">Choose tutor</option>{available.map(tutor => <option key={tutor.id} value={tutor.id}>{tutor.full_name}</option>)}</select></label>
+      <label>Reason<textarea name="reason" required minLength={5} maxLength={2000}/></label>
+    </ManagedForm></details>}
+  </div>;
+}
 function AcademicForm({ kind, universities, entity }: { kind: string; universities: University[]; entity?: Entity }) {
   return <ManagedForm action={saveAcademicRecord} label={entity ? "Save changes" : "Create record"}>
     <input type="hidden" name="kind" value={kind}/><input type="hidden" name="id" value={entity?.id ?? ""}/>
@@ -18,7 +33,12 @@ function AcademicForm({ kind, universities, entity }: { kind: string; universiti
 }
 export default async function AcademicSettingsPage() {
   const account = await requireAcademicManager();
-  const [catalogue,settings] = await Promise.all([getCatalogue(),getAdmissionsSettings()]);
+  const db = await createSupabaseServerClient();
+  const [catalogue,settings,tutorsResult,assignmentsResult] = await Promise.all([
+    getCatalogue(),getAdmissionsSettings(),db.rpc("list_tutors"),db.from("course_tutors").select("course_id,tutor_id"),
+  ]);
+  const tutors = (tutorsResult.data ?? []) as Tutor[];
+  const assignments = assignmentsResult.data ?? [];
   const superAdmin = account.roles.includes("super_admin");
   const groups = [
     { title:"Universities",kind:"university",rows:catalogue.universities },
@@ -44,6 +64,7 @@ export default async function AcademicSettingsPage() {
           {group.kind==="course" && superAdmin && "published" in row && <ManagedForm action={publishCourse} label={row.published ? "Unpublish course" : "Approve and publish"}>
             <label>Approval reason<textarea name="reason" minLength={5} maxLength={2000} required/></label><input type="hidden" name="id" value={row.id}/><input type="hidden" name="published" value={row.published ? "false" : "true"}/>
           </ManagedForm>}
+          {group.kind==="course" && <TutorAssignmentForm courseId={row.id} tutors={tutors} assignedIds={assignments.filter(a => a.course_id === row.id).map(a => a.tutor_id)}/>}
         </details>)}</div>
       </div>)}
     </div>

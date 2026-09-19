@@ -5,8 +5,9 @@ import { assignTutor, publishCourse, saveAcademicRecord, saveAdmissionsSettings 
 import type { University } from "@/lib/admissions/validation";
 
 export const dynamic = "force-dynamic";
-type Entity = { id: string; name: string; code?: string; university_id?: string; active?: boolean; description?: string; level?: number; registration_opens?: string; registration_closes?: string };
+type Entity = { id: string; name: string; code?: string; university_id?: string; active?: boolean; description?: string; level?: number; registration_opens?: string; registration_closes?: string; department_id?: string | null; duration_years?: number; capacity?: number | null };
 type Tutor = { id: string; full_name: string };
+type Department = { id: string; name: string };
 function TutorAssignmentForm({ courseId, tutors, assignedIds }: { courseId: string; tutors: Tutor[]; assignedIds: string[] }) {
   const available = tutors.filter(tutor => !assignedIds.includes(tutor.id));
   return <div><h3>Assigned tutors</h3>
@@ -20,25 +21,27 @@ function TutorAssignmentForm({ courseId, tutors, assignedIds }: { courseId: stri
     </ManagedForm></details>}
   </div>;
 }
-function AcademicForm({ kind, universities, entity }: { kind: string; universities: University[]; entity?: Entity }) {
+function AcademicForm({ kind, universities, departments, entity }: { kind: string; universities: University[]; departments: Department[]; entity?: Entity }) {
   return <ManagedForm action={saveAcademicRecord} label={entity ? "Save changes" : "Create record"}>
     <input type="hidden" name="kind" value={kind}/><input type="hidden" name="id" value={entity?.id ?? ""}/>
     <label>Name<input name="name" defaultValue={entity?.name ?? ""} minLength={2} maxLength={200} required/></label>
     {kind!=="period" && <label>Internal code<input name="code" defaultValue={entity?.code ?? ""} minLength={2} maxLength={40} required/></label>}
     {kind!=="university" && (entity ? <input type="hidden" name="university_id" value={entity.university_id}/> : <label>University<select name="university_id" required><option value="">Choose university</option>{universities.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>)}
+    {kind==="programme" && <><label>Department (optional)<select name="department_id" defaultValue={entity?.department_id ?? ""}><option value="">No department</option>{departments.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label><label>Duration (years)<input type="number" name="duration_years" min={1} max={10} defaultValue={entity?.duration_years ?? 3} required/></label></>}
     {kind==="period" && <><label>Registration opens<input type="date" name="registration_opens" defaultValue={entity?.registration_opens} required/></label><label>Registration closes<input type="date" name="registration_closes" defaultValue={entity?.registration_closes} required/></label><small>Registration dates use Malawi time.</small></>}
-    {kind==="course" ? <><label>Level<input type="number" name="level" min={1} max={10} defaultValue={entity?.level ?? 1} required/></label><label>Description<textarea name="description" maxLength={2000} defaultValue={entity?.description ?? ""}/></label></> : <label className="check-label"><input type="checkbox" name="active" defaultChecked={entity?.active ?? true}/>Active</label>}
+    {kind==="course" ? <><label>Level<input type="number" name="level" min={1} max={10} defaultValue={entity?.level ?? 1} required/></label><label>Capacity (optional, leave blank for unlimited)<input type="number" name="capacity" min={1} defaultValue={entity?.capacity ?? ""}/></label><label>Description<textarea name="description" maxLength={2000} defaultValue={entity?.description ?? ""}/></label></> : <label className="check-label"><input type="checkbox" name="active" defaultChecked={entity?.active ?? true}/>Active</label>}
     <label>Reason for this change<textarea name="reason" minLength={5} maxLength={2000} required/></label>
   </ManagedForm>;
 }
 export default async function AcademicSettingsPage() {
   const account = await requireAcademicManager();
   const db = await createSupabaseServerClient();
-  const [catalogue,settings,tutorsResult,assignmentsResult] = await Promise.all([
-    getCatalogue(),getAdmissionsSettings(),db.rpc("list_tutors"),db.from("course_tutors").select("course_id,tutor_id"),
+  const [catalogue,settings,tutorsResult,assignmentsResult,departmentsResult] = await Promise.all([
+    getCatalogue(),getAdmissionsSettings(),db.rpc("list_tutors"),db.from("course_tutors").select("course_id,tutor_id"),db.from("departments").select("id,name").order("name"),
   ]);
   const tutors = (tutorsResult.data ?? []) as Tutor[];
   const assignments = assignmentsResult.data ?? [];
+  const departments = (departmentsResult.data ?? []) as Department[];
   const superAdmin = account.roles.includes("super_admin");
   const groups = [
     { title:"Universities",kind:"university",rows:catalogue.universities },
@@ -58,9 +61,9 @@ export default async function AcademicSettingsPage() {
         <label>Reason for changing these settings<textarea name="reason" minLength={5} maxLength={2000} required/></label>
       </ManagedForm></div>}
       {groups.map(group=><div className="panel" key={group.kind}><header><h2>{group.title}</h2></header>
-        <details><summary>Create {group.kind}</summary><AcademicForm kind={group.kind} universities={catalogue.universities}/></details>
+        <details><summary>Create {group.kind}</summary><AcademicForm kind={group.kind} universities={catalogue.universities} departments={departments}/></details>
         <div className="academic-records">{group.rows.map(row=><details key={row.id}><summary>{row.name} {"published" in row ? (row.published ? "· Published" : "· Draft") : row.active ? "· Active" : "· Inactive"}</summary>
-          <AcademicForm kind={group.kind} universities={catalogue.universities} entity={row}/>
+          <AcademicForm kind={group.kind} universities={catalogue.universities} departments={departments} entity={row}/>
           {group.kind==="course" && superAdmin && "published" in row && <ManagedForm action={publishCourse} label={row.published ? "Unpublish course" : "Approve and publish"}>
             <label>Approval reason<textarea name="reason" minLength={5} maxLength={2000} required/></label><input type="hidden" name="id" value={row.id}/><input type="hidden" name="published" value={row.published ? "false" : "true"}/>
           </ManagedForm>}

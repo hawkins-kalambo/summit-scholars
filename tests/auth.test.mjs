@@ -10,7 +10,8 @@ test("students and staff cannot acquire unrelated workspaces", () => {
   assert.equal(canEnterWorkspace(["tutor"], "tutor"), true);
   assert.equal(canEnterWorkspace(["super_admin"], "academic_admin"), true);
   assert.equal(isRole("admin"), false);
-  assert.equal(isRole("finance_administrator"), false);
+  assert.equal(isRole("finance_manager"), false);
+  assert.equal(isRole("finance_administrator"), true);
 });
 
 test("registration validates inputs and discards client-supplied privileges", () => {

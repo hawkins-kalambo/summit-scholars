@@ -1,9 +1,9 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { requireAccount } from "@/lib/auth/session";
-export async function requireAdminArea(area: "users" | "library" | "audit" | "overview") {
+export async function requireAdminArea(area: "users" | "library" | "audit" | "overview" | "structure") {
   const account = await requireAccount("/login/admin");
-  const allowed = area === "users" ? ["super_admin", "system_admin"] : area === "library" ? ["super_admin", "academic_admin"] : area === "audit" ? ["super_admin", "auditor"] : ["super_admin", "system_admin", "academic_admin"];
+  const allowed = area === "users" ? ["super_admin", "system_admin"] : area === "library" ? ["super_admin", "academic_admin"] : area === "audit" ? ["super_admin", "auditor"] : area === "structure" ? ["super_admin", "system_admin"] : ["super_admin", "system_admin", "academic_admin"];
   if (account.status !== "active" || !account.roles.some(role => allowed.includes(role))) redirect("/portal");
   return account;
 }

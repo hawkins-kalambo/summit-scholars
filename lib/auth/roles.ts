@@ -1,10 +1,11 @@
-export const roles = ["super_admin", "system_admin", "academic_admin", "admissions_officer", "finance_officer", "tutor", "student", "support_officer", "auditor"] as const;
+export const roles = ["super_admin", "system_admin", "academic_admin", "admissions_officer", "finance_officer", "finance_administrator", "tutor", "student", "support_officer", "auditor"] as const;
 export type Role = (typeof roles)[number];
 
 export const roleLabels: Record<Role, string> = {
   super_admin: "Super Administrator", system_admin: "System Administrator",
   academic_admin: "Academic Administrator", admissions_officer: "Admissions Officer",
-  finance_officer: "Finance Officer", tutor: "Tutor", student: "Student",
+  finance_officer: "Finance Officer", finance_administrator: "Finance Administrator",
+  tutor: "Tutor", student: "Student",
   support_officer: "Support Officer", auditor: "Auditor",
 };
 

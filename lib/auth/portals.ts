@@ -4,7 +4,7 @@ export type Portal = (typeof portals)[number];
 export const portalLabels: Record<Portal, string> = { admin: "Admin", staff: "Staff & Tutors", student: "Student" };
 export const portalRoles: Record<Portal, readonly Role[]> = {
   admin: ["super_admin", "system_admin", "academic_admin"],
-  staff: ["admissions_officer", "finance_officer", "tutor", "support_officer", "auditor"],
+  staff: ["admissions_officer", "finance_officer", "finance_administrator", "tutor", "support_officer", "auditor"],
   student: ["student"],
 };
 export function isPortal(value: unknown): value is Portal { return portals.some(portal => portal === value); }

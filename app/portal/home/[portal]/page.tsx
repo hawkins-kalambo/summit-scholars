@@ -1,7 +1,7 @@
 import { AdminOverview } from "@/components/admin/overview";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { GraduationCap, BookOpen, ShieldCheck, ArrowRight } from "lucide-react";
+import { GraduationCap, BookOpen, ShieldCheck, ArrowRight, CalendarClock } from "lucide-react";
 import { requireAccount } from "@/lib/auth/session";
 import { isPortal, canEnterPortal, portalLabels, portalRoles } from "@/lib/auth/portals";
 import { roleLabels } from "@/lib/auth/roles";
@@ -19,19 +19,27 @@ export default async function PortalHome({ params }: { params: Promise<{ portal:
 
   if (portal === "student") {
     const db = await createSupabaseServerClient();
-    const { data } = account.studentNumber ? await db.from("enrolments").select("status,courses(name,code)").eq("student_id", account.user.id).order("created_at") : { data: null };
-    const enrolments = (data ?? []) as unknown as { status: string; courses: { name: string; code: string } | null }[];
+    const [enrolmentsResult, nextSessionResult] = await Promise.all([
+      account.studentNumber ? db.from("enrolments").select("status,courses(name,code)").eq("student_id", account.user.id).order("created_at") : Promise.resolve({ data: null }),
+      account.studentNumber ? db.from("class_sessions").select("topic,venue,starts_at,meeting_link,courses(name)").eq("status", "scheduled").gt("starts_at", new Date().toISOString()).order("starts_at").limit(1).maybeSingle() : Promise.resolve({ data: null }),
+    ]);
+    const enrolments = (enrolmentsResult.data ?? []) as unknown as { status: string; courses: { name: string; code: string } | null }[];
+    const nextSession = nextSessionResult.data as unknown as { topic: string; venue: string; starts_at: string; meeting_link: string | null; courses: { name: string } | null } | null;
     return <div className="dash">{title}
       <div className="stats">
         <div className="stat green"><i><GraduationCap size={21}/></i><div><strong>{account.studentNumber ?? "Pending"}</strong><span>Student number</span></div></div>
         <div className="stat"><i><BookOpen size={21}/></i><div><strong>{enrolments.length}</strong><span>Enrolled courses</span></div></div>
         <div className="stat gold"><i><ShieldCheck size={21}/></i><div><strong>{account.status === "active" ? "Active" : "Pending"}</strong><span>Account status</span></div></div>
+        <div className="stat"><i><CalendarClock size={21}/></i><div><strong>{nextSession ? new Date(nextSession.starts_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "None"}</strong><span>Next class</span></div></div>
       </div>
       <div className="dashgrid">
         <div className="panel"><header><h2>Your courses</h2></header>
           {enrolments.length ? <div className="rows">{enrolments.map((enrolment, index) => <div key={index}><span>{enrolment.courses?.code ?? "—"}</span><span>{enrolment.courses?.name ?? "Unknown course"}</span><span>{enrolment.status}</span><span/></div>)}</div>
             : <p>No course registrations yet. Prepare your application to get started.</p>}
-          <p><small>Timetables, assignments, attendance and results are not yet available and will appear here as those features launch.</small></p>
+          <p><small>Assignments and results are not yet available and will appear here as those features launch.</small></p>
+        </div>
+        <div className="panel"><header><h2>Next class</h2></header>
+          {nextSession ? <p>{nextSession.courses?.name ?? "Class"} · {nextSession.topic}<br/>{nextSession.venue} · {new Date(nextSession.starts_at).toLocaleString("en-GB", { timeZone: "Africa/Blantyre" })}{nextSession.meeting_link && <><br/><a href={nextSession.meeting_link} target="_blank" rel="noreferrer">Join meeting</a></>}</p> : <p>No upcoming classes scheduled.</p>}
         </div>
         <div className="panel"><header><h2>Quick actions</h2></header>
           <div className="quick">

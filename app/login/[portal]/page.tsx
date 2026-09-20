@@ -13,6 +13,6 @@ export default async function PortalLogin({ params }: { params: Promise<{ portal
     {!enabled && <UnavailableNotice />}
     <AuthForm mode="login" enabled={enabled} portal={portal} />
     <div className="auth-links"><Link href="/forgot-password">Forgot password?</Link>{portal === "student" && <Link href="/register">Create a student account</Link>}</div>
-    <p className="auth-links"><Link href="/login">Choose a different portal</Link></p>
+    {portal !== "student" && <p className="auth-links"><Link href="/login">Choose a different portal</Link></p>}
   </AuthShell>;
 }

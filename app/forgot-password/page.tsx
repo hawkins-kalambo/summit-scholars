@@ -9,6 +9,6 @@ export default function ForgotPasswordPage() {
   return <AuthShell title="Reset your password" description="Enter your account email and we’ll send a recovery link.">
     {!enabled && <UnavailableNotice />}
     <AuthForm mode="forgot" enabled={enabled} />
-    <p className="auth-links"><Link href="/login">Back to sign in</Link></p>
+    <p className="auth-links"><Link href="/login/student">Back to sign in</Link></p>
   </AuthShell>;
 }

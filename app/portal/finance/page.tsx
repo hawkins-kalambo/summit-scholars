@@ -4,11 +4,13 @@ import { requireFinance } from "@/lib/finance/data";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { pageNumber } from "@/lib/admin/access";
 import { ManagedForm } from "@/components/admissions/managed-form";
-import { recordPayment } from "./actions";
+import { recordPayment, requestAdjustment, decideAdjustment, requestRefund, decideRefund } from "./actions";
 export const dynamic = "force-dynamic";
 type InvoiceRow = { id: string; reference: string; student_name: string; total_amount: number; balance_amount: number; status: string; created_at: string; total_count: number };
 type LineItem = { id: string; description: string; amount: number };
 type Payment = { id: string; amount: number; method: string; reference: string; created_at: string };
+type AdjustmentRequest = { id: string; invoice_id: string; adjustment_amount: number; reason: string; requested_by: string; invoices: { reference: string } | null };
+type RefundRequest = { id: string; invoice_id: string; amount: number; reason: string; requested_by: string; invoices: { reference: string } | null };
 const statuses = ["invoice_created", "pending", "processing", "partially_paid", "paid", "failed", "cancelled", "refunded", "overdue"];
 const methods: Record<string, string> = { cash: "Cash", bank_transfer: "Bank transfer", mobile_money: "Mobile money" };
 
@@ -18,21 +20,27 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const page = pageNumber(params.page);
   const status = typeof params.status === "string" && statuses.includes(params.status) ? params.status : "";
   const db = await createSupabaseServerClient();
-  const [invoicesResult, revenueResult, outstandingResult] = await Promise.all([
+  const [invoicesResult, revenueResult, outstandingResult, adjustmentsResult, refundsResult] = await Promise.all([
     db.rpc("finance_invoices", { p_status: status || null, p_page: page }),
     db.from("payments").select("amount"),
     db.from("invoices").select("balance_amount").not("status", "in", "(paid,cancelled,refunded)"),
+    db.from("payment_adjustment_requests").select("id,invoice_id,adjustment_amount,reason,requested_by,invoices(reference)").eq("status", "pending").order("created_at"),
+    db.from("refund_requests").select("id,invoice_id,amount,reason,requested_by,invoices(reference)").eq("status", "pending").order("created_at"),
   ]);
   if (invoicesResult.error) throw new Error("Unable to load invoices. Apply the finance migration first.");
   const invoices = (invoicesResult.data ?? []) as InvoiceRow[];
   const totalRevenue = (revenueResult.data ?? []).reduce((sum, row) => sum + Number(row.amount), 0);
   const totalOutstanding = (outstandingResult.data ?? []).reduce((sum, row) => sum + Number(row.balance_amount), 0);
+  const pendingAdjustments = (adjustmentsResult.data ?? []) as unknown as AdjustmentRequest[];
+  const pendingRefunds = (refundsResult.data ?? []) as unknown as RefundRequest[];
   const [lineItemsResults, paymentsResults] = await Promise.all([
     Promise.all(invoices.map(invoice => db.from("invoice_line_items").select("id,description,amount").eq("invoice_id", invoice.id))),
     Promise.all(invoices.map(invoice => db.from("payments").select("id,amount,method,reference,created_at").eq("invoice_id", invoice.id).order("created_at"))),
   ]);
   const link = (n: number) => "/portal/finance?" + new URLSearchParams({ status, page: String(n) });
   const canRecord = account.roles.includes("finance_officer") || account.roles.includes("super_admin");
+  const canDecideAdjustments = account.roles.includes("finance_administrator");
+  const canDecideRefunds = account.roles.includes("super_admin");
   return <div className="dash">
     <div className="dash-title"><div><span className="eyebrow">Finance</span><h1>Welcome, {account.fullName}.</h1><p>Invoices, payments and balances across the institution.</p></div></div>
     <div className="stats">
@@ -60,8 +68,42 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           <label>Note (optional)<input name="note" maxLength={500}/></label>
           <label>Reason<textarea name="reason" required minLength={5} maxLength={2000}/></label>
         </ManagedForm></details>}
+        {canRecord && <details><summary>Request an adjustment</summary><p><small>Corrects the invoice total and balance. Requires Finance Administrator approval.</small></p><ManagedForm action={requestAdjustment} label="Request adjustment">
+          <input type="hidden" name="invoiceId" value={invoice.id}/>
+          <label>Amount, MWK (negative to reduce, positive to increase)<input type="number" name="amount" step="0.01" required/></label>
+          <label>Reason<textarea name="reason" required minLength={5} maxLength={2000}/></label>
+        </ManagedForm></details>}
+        {canRecord && <details><summary>Request a refund</summary><p><small>Requires Super Administrator approval.</small></p><ManagedForm action={requestRefund} label="Request refund">
+          <input type="hidden" name="invoiceId" value={invoice.id}/>
+          <label>Amount, MWK<input type="number" name="amount" min={1} max={invoice.total_amount} step="0.01" required/></label>
+          <label>Reason<textarea name="reason" required minLength={5} maxLength={2000}/></label>
+        </ManagedForm></details>}
       </section>;
     })}
     <nav className="pagination" aria-label="Invoice pages">{page > 1 && <Link href={link(page - 1)}>Previous</Link>}<span>Page {page}</span>{invoices.length && page * 25 < Number(invoices[0].total_count) ? <Link href={link(page + 1)}>Next</Link> : null}</nav>
+    {(canDecideAdjustments || canDecideRefunds) && <div className="dashgrid">
+      {canDecideAdjustments && <div className="panel"><header><h2>Pending adjustments</h2></header>
+        {pendingAdjustments.length ? pendingAdjustments.map(request => <section className="account-card" key={request.id}>
+          <p>{request.invoices?.reference ?? request.invoice_id} · MWK {Number(request.adjustment_amount).toLocaleString("en-GB")}</p>
+          <p>{request.reason}</p>
+          {request.requested_by === account.user.id ? <p><small>A different Finance Administrator must decide this request.</small></p> : <ManagedForm action={decideAdjustment} label="Record decision">
+            <input type="hidden" name="id" value={request.id}/>
+            <label>Decision<select name="decision"><option value="approve">Approve</option><option value="reject">Reject</option></select></label>
+            <label>Decision reason<textarea name="reason" required minLength={5} maxLength={2000}/></label>
+          </ManagedForm>}
+        </section>) : <p>No pending adjustments.</p>}
+      </div>}
+      {canDecideRefunds && <div className="panel"><header><h2>Pending refunds</h2></header>
+        {pendingRefunds.length ? pendingRefunds.map(request => <section className="account-card" key={request.id}>
+          <p>{request.invoices?.reference ?? request.invoice_id} · MWK {Number(request.amount).toLocaleString("en-GB")}</p>
+          <p>{request.reason}</p>
+          {request.requested_by === account.user.id ? <p><small>A different Super Administrator must decide this request.</small></p> : <ManagedForm action={decideRefund} label="Record decision">
+            <input type="hidden" name="id" value={request.id}/>
+            <label>Decision<select name="decision"><option value="approve">Approve</option><option value="reject">Reject</option></select></label>
+            <label>Decision reason<textarea name="reason" required minLength={5} maxLength={2000}/></label>
+          </ManagedForm>}
+        </section>) : <p>No pending refunds.</p>}
+      </div>}
+    </div>}
   </div>;
 }

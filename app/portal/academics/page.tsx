@@ -5,7 +5,7 @@ import { assignTutor, publishCourse, saveAcademicRecord, saveAdmissionsSettings 
 import type { University } from "@/lib/admissions/validation";
 
 export const dynamic = "force-dynamic";
-type Entity = { id: string; name: string; code?: string; university_id?: string; active?: boolean; description?: string; level?: number; registration_opens?: string; registration_closes?: string; department_id?: string | null; duration_years?: number; capacity?: number | null };
+type Entity = { id: string; name: string; code?: string; university_id?: string; active?: boolean; description?: string; level?: number; registration_opens?: string; registration_closes?: string; department_id?: string | null; duration_years?: number; capacity?: number | null; fee_amount?: number | null };
 type Tutor = { id: string; full_name: string };
 type Department = { id: string; name: string };
 function TutorAssignmentForm({ courseId, tutors, assignedIds }: { courseId: string; tutors: Tutor[]; assignedIds: string[] }) {
@@ -29,7 +29,7 @@ function AcademicForm({ kind, universities, departments, entity }: { kind: strin
     {kind!=="university" && (entity ? <input type="hidden" name="university_id" value={entity.university_id}/> : <label>University<select name="university_id" required><option value="">Choose university</option>{universities.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>)}
     {kind==="programme" && <><label>Department (optional)<select name="department_id" defaultValue={entity?.department_id ?? ""}><option value="">No department</option>{departments.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label><label>Duration (years)<input type="number" name="duration_years" min={1} max={10} defaultValue={entity?.duration_years ?? 3} required/></label></>}
     {kind==="period" && <><label>Registration opens<input type="date" name="registration_opens" defaultValue={entity?.registration_opens} required/></label><label>Registration closes<input type="date" name="registration_closes" defaultValue={entity?.registration_closes} required/></label><small>Registration dates use Malawi time.</small></>}
-    {kind==="course" ? <><label>Level<input type="number" name="level" min={1} max={10} defaultValue={entity?.level ?? 1} required/></label><label>Capacity (optional, leave blank for unlimited)<input type="number" name="capacity" min={1} defaultValue={entity?.capacity ?? ""}/></label><label>Description<textarea name="description" maxLength={2000} defaultValue={entity?.description ?? ""}/></label></> : <label className="check-label"><input type="checkbox" name="active" defaultChecked={entity?.active ?? true}/>Active</label>}
+    {kind==="course" ? <><label>Level<input type="number" name="level" min={1} max={10} defaultValue={entity?.level ?? 1} required/></label><label>Capacity (optional, leave blank for unlimited)<input type="number" name="capacity" min={1} defaultValue={entity?.capacity ?? ""}/></label><label>Fee, MWK (optional, leave blank if free)<input type="number" name="fee_amount" min={0} step="0.01" defaultValue={entity?.fee_amount ?? ""}/></label><label>Description<textarea name="description" maxLength={2000} defaultValue={entity?.description ?? ""}/></label></> : <label className="check-label"><input type="checkbox" name="active" defaultChecked={entity?.active ?? true}/>Active</label>}
     <label>Reason for this change<textarea name="reason" minLength={5} maxLength={2000} required/></label>
   </ManagedForm>;
 }

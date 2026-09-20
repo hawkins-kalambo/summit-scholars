@@ -1,11 +1,12 @@
 import type { Role } from "./roles";
-export const portals = ["admin", "staff", "student"] as const;
+export const portals = ["admin", "staff", "student", "finance"] as const;
 export type Portal = (typeof portals)[number];
-export const portalLabels: Record<Portal, string> = { admin: "Admin", staff: "Staff & Tutors", student: "Student" };
+export const portalLabels: Record<Portal, string> = { admin: "Admin", staff: "Staff & Tutors", student: "Student", finance: "Finance" };
 export const portalRoles: Record<Portal, readonly Role[]> = {
   admin: ["super_admin", "system_admin", "academic_admin"],
-  staff: ["admissions_officer", "finance_officer", "finance_administrator", "tutor", "support_officer", "auditor"],
+  staff: ["admissions_officer", "tutor", "support_officer", "auditor"],
   student: ["student"],
+  finance: ["finance_officer", "finance_administrator"],
 };
 export function isPortal(value: unknown): value is Portal { return portals.some(portal => portal === value); }
 export function canEnterPortal(assigned: readonly Role[], status: string, portal: Portal): boolean {

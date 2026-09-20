@@ -20,7 +20,7 @@ export async function saveAcademicRecord(_state: FormResult, form: FormData): Pr
     registration_opens: form.get("registration_opens"), registration_closes: form.get("registration_closes"),
     description: String(form.get("description") ?? "").slice(0,2000), level: Number(form.get("level") ?? 1),
     department_id: form.get("department_id") || null, duration_years: form.get("duration_years") || null,
-    capacity: form.get("capacity") || null,
+    capacity: form.get("capacity") || null, fee_amount: form.get("fee_amount") || null,
   }});
   if (error) return failure(error);
   revalidatePath("/portal/academics");

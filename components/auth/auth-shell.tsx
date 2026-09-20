@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ShieldCheck, Users, GraduationCap, CheckCircle2, type LucideIcon } from "lucide-react";
+import { ShieldCheck, Users, GraduationCap, CheckCircle2, Wallet, type LucideIcon } from "lucide-react";
 
-type PortalTheme = "admin" | "staff" | "student";
+type PortalTheme = "admin" | "staff" | "student" | "finance";
 type Theme = { icon: LucideIcon; eyebrow: string; heading: string; blurb: string; points: string[] };
 const themes: Record<PortalTheme, Theme> = {
   admin: {
@@ -22,6 +22,12 @@ const themes: Record<PortalTheme, Theme> = {
     heading: "Your academic journey, tracked.",
     blurb: "Apply, track your admission and access your student account and library.",
     points: ["Apply and track your admission status", "Access your enrolled courses and library", "Independent academic support, transparently run"],
+  },
+  finance: {
+    icon: Wallet, eyebrow: "Finance",
+    heading: "Every transaction, accounted for.",
+    blurb: "Manage invoices, record payments and keep the ledger accurate.",
+    points: ["Server-verified balances, never client-reported", "Separation of duties on adjustments and refunds", "A full audit trail on every transaction"],
   },
 };
 const defaultTheme: Theme = {

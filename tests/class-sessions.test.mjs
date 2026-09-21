@@ -28,6 +28,7 @@ test("tutors schedule conflict-checked classes, confirm them with attendance, an
       "../supabase/migrations/202609190004_tutor_assignments.sql",
       "../supabase/migrations/202609200001_class_sessions_attendance.sql",
       "../supabase/migrations/202609210001_class_sessions_google_meet.sql",
+      "../supabase/migrations/202609210003_class_sessions_google_meet_details.sql",
     ]) { await db.exec(await readFile(new URL(path, import.meta.url), "utf8")); }
     for (const id of ids) await db.query("insert into auth.users(id) values($1)", [id]);
     await db.query("update public.profiles set account_status='active' where id=any($1::uuid[])", [ids]);
@@ -69,14 +70,24 @@ test("tutors schedule conflict-checked classes, confirm them with attendance, an
     const otherSession = await scalar("select public.schedule_class_session($1,'No conflict','Room 2',$2,$3,null,'Schedule class') as result", [biology, "2030-01-01T10:30:00Z", "2030-01-01T11:30:00Z"]);
     assert.ok(otherSession);
 
+    const chosenId = "90000000-0000-4000-8000-000000000099";
     const googleSession = await scalar(
-      "select public.schedule_class_session($1,'Online class','Online',$2,$3,'https://meet.google.com/abc-defg-hij','Schedule class','evt-123') as result",
-      [biology, "2030-01-01T13:00:00Z", "2030-01-01T14:00:00Z"],
+      "select public.schedule_class_session($1,'Online class','Online',$2,$3,'https://meet.google.com/abc-defg-hij','Schedule class','evt-123','https://calendar.google.com/event?eid=evt-123',$4) as result",
+      [biology, "2030-01-01T13:00:00Z", "2030-01-01T14:00:00Z", chosenId],
     );
+    assert.equal(googleSession, chosenId);
     assert.deepEqual(
-      (await db.query("select meeting_link,google_event_id from public.class_sessions where id=$1", [googleSession])).rows[0],
-      { meeting_link: "https://meet.google.com/abc-defg-hij", google_event_id: "evt-123" },
+      (await db.query("select meeting_link,google_event_id,google_event_html_link from public.class_sessions where id=$1", [googleSession])).rows[0],
+      { meeting_link: "https://meet.google.com/abc-defg-hij", google_event_id: "evt-123", google_event_html_link: "https://calendar.google.com/event?eid=evt-123" },
     );
+
+    // Attendee emails for a Calendar invite are scoped the same way as the roster.
+    await asUser(otherTutor);
+    await assert.rejects(db.query("select * from public.class_session_attendee_emails($1)", [precalc]), /not assigned to this course/);
+    await asUser(tutor);
+    assert.deepEqual((await db.query("select email from public.class_session_attendee_emails($1)", [precalc])).rows, [{ email: "test@example.test" }]);
+    await asUser(academicAdmin);
+    assert.deepEqual((await db.query("select email from public.class_session_attendee_emails($1)", [precalc])).rows, [{ email: "test@example.test" }]);
 
     await asUser(tutor);
     await db.query(

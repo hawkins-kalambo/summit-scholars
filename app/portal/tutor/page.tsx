@@ -7,19 +7,23 @@ import { scheduleSession, confirmSession, saveTutorProfile } from "./actions";
 export const dynamic = "force-dynamic";
 type Course = { course_id: string; name: string; code: string; student_count: number };
 type RosterRow = { student_id: string; full_name: string; status: string };
-type SessionRow = { id: string; course_id: string; topic: string; venue: string; starts_at: string; ends_at: string; meeting_link: string | null; status: string; actual_starts_at: string | null; actual_ends_at: string | null };
+type SessionRow = { id: string; course_id: string; topic: string; venue: string; starts_at: string; ends_at: string; meeting_link: string | null; google_event_html_link: string | null; status: string; actual_starts_at: string | null; actual_ends_at: string | null };
 type TutorProfile = { display_name: string; headline: string; bio: string; subjects: string; visible: boolean };
 type PayrollRun = { id: string; period_start: string; period_end: string; session_count: number; total_amount: number; status: string };
 
-function ScheduleForm({ courseId, googleConfigured }: { courseId: string; googleConfigured: boolean }) {
+function ScheduleForm({ courseId, courseName, googleConfigured }: { courseId: string; courseName: string; googleConfigured: boolean }) {
   return <ManagedForm action={scheduleSession} label="Schedule class">
     <input type="hidden" name="courseId" value={courseId}/>
+    <input type="hidden" name="courseName" value={courseName}/>
     <label>Topic<input name="topic" required minLength={2} maxLength={200}/></label>
     <label>Venue<input name="venue" required minLength={2} maxLength={200} placeholder="Room 12, or Online"/></label>
     <label>Starts<input type="datetime-local" name="startsAt" required/></label>
     <label>Ends<input type="datetime-local" name="endsAt" required/></label>
     {googleConfigured
-      ? <label className="check-label"><input type="checkbox" name="autoGenerateMeet" value="true" defaultChecked/>Auto-create a Google Meet link for this class</label>
+      ? <>
+        <label className="check-label"><input type="checkbox" name="autoGenerateMeet" value="true" defaultChecked/>Auto-create a Google Meet link for this class</label>
+        <label>Notes for the calendar invite (optional)<textarea name="notes" maxLength={2000} placeholder="Bring a calculator, chapter 4 covered, etc."/></label>
+      </>
       : <label>Meeting link (optional)<input name="meetingLink" type="url" maxLength={500} placeholder="https://meet.google.com/..."/></label>}
     <label>Reason<textarea name="reason" required minLength={5} maxLength={2000}/></label>
   </ManagedForm>;
@@ -86,9 +90,10 @@ export default async function TutorDashboard() {
           {courseSessions.length ? <ul>{courseSessions.map(session => <li key={session.id}>
             {session.topic} · {session.venue} · {new Date(session.starts_at).toLocaleString("en-GB", { timeZone: "Africa/Blantyre" })} · {session.status.replaceAll("_", " ")}
             {session.meeting_link && <> · <a href={session.meeting_link} target="_blank" rel="noreferrer">Meeting link</a></>}
+            {session.google_event_html_link && <> · <a href={session.google_event_html_link} target="_blank" rel="noreferrer">Calendar event</a></>}
             {session.status === "scheduled" && <details><summary>Confirm this class</summary><ConfirmForm session={session} roster={roster}/></details>}
           </li>)}</ul> : <p>No classes scheduled yet.</p>}
-          <details><summary>Schedule a class</summary><ScheduleForm courseId={course.course_id} googleConfigured={googleConfigured}/></details>
+          <details><summary>Schedule a class</summary><ScheduleForm courseId={course.course_id} courseName={course.name} googleConfigured={googleConfigured}/></details>
         </div>;
       })}
     </div>}

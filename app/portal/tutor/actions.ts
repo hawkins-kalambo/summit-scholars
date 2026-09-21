@@ -9,33 +9,52 @@ function failure(error: { code?: string; message: string }): FormResult {
   return { error: error.code === "P0001" ? error.message : "This could not be saved. Check the fields and try again." };
 }
 export async function scheduleSession(_state: FormResult, form: FormData): Promise<FormResult> {
-  await requireTutor();
+  const account = await requireTutor();
   const input = z.object({
-    courseId: z.string().uuid(), topic: z.string().trim().min(2).max(200), venue: z.string().trim().min(2).max(200),
-    startsAt: z.string().min(1), endsAt: z.string().min(1), meetingLink: z.string().trim().max(500).optional(),
+    courseId: z.string().uuid(), courseName: z.string().trim().min(1).max(200), topic: z.string().trim().min(2).max(200),
+    venue: z.string().trim().min(2).max(200), startsAt: z.string().min(1), endsAt: z.string().min(1),
+    meetingLink: z.string().trim().max(500).optional(), notes: z.string().trim().max(2000).optional(),
     reason: z.string().trim().min(5).max(2000),
-  }).safeParse(Object.fromEntries(form));
-  if (!input.success) return { error: "Fill in the topic, venue, start, end and a reason." };
+  }).refine(value => new Date(value.endsAt) > new Date(value.startsAt), { message: "The class must end after it starts.", path: ["endsAt"] })
+    .safeParse(Object.fromEntries(form));
+  if (!input.success) return { error: input.error.issues[0]?.message ?? "Fill in the topic, venue, start, end and a reason." };
   const startsAt = new Date(input.data.startsAt).toISOString();
   const endsAt = new Date(input.data.endsAt).toISOString();
   let meetingLink = input.data.meetingLink || null;
   let googleEventId: string | null = null;
+  let googleEventHtmlLink: string | null = null;
+  const sessionId = crypto.randomUUID();
+  const db = await createSupabaseServerClient();
   if (isGoogleCalendarConfigured() && form.get("autoGenerateMeet") === "true") {
+    const { data: attendeeRows } = await db.rpc("class_session_attendee_emails", { p_course_id: input.data.courseId });
+    const attendeeEmails = ((attendeeRows ?? []) as { email: string }[]).map(row => row.email);
     try {
-      const event = await createMeetEvent({ topic: input.data.topic, startsAt, endsAt });
+      const event = await createMeetEvent({
+        topic: input.data.topic, courseName: input.data.courseName, tutorName: account.fullName, sessionId,
+        startsAt, endsAt, notes: input.data.notes, attendeeEmails,
+      });
       meetingLink = event.meetingLink;
       googleEventId = event.eventId;
-    } catch {
-      return { error: "Could not create the Google Meet link. Try again or enter a link manually." };
+      googleEventHtmlLink = event.htmlLink;
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Could not create the Google Meet link. Try again or enter a link manually." };
     }
   }
-  const db = await createSupabaseServerClient();
   const { error } = await db.rpc("schedule_class_session", {
     p_course_id: input.data.courseId, p_topic: input.data.topic, p_venue: input.data.venue,
-    p_starts_at: startsAt, p_ends_at: endsAt,
-    p_meeting_link: meetingLink, p_reason: input.data.reason, p_google_event_id: googleEventId,
+    p_starts_at: startsAt, p_ends_at: endsAt, p_meeting_link: meetingLink, p_reason: input.data.reason,
+    p_google_event_id: googleEventId, p_google_event_html_link: googleEventHtmlLink, p_id: sessionId,
   });
-  if (error) return failure(error);
+  if (error) {
+    if (googleEventId) {
+      // Compensate for the orphaned Calendar event so a failed/retried booking
+      // never leaves a stray Meet link with no matching class session.
+      await cancelMeetEvent(googleEventId).catch(() => {
+        console.error("Failed to clean up an orphaned Google Calendar event", { googleEventId });
+      });
+    }
+    return failure(error);
+  }
   revalidatePath("/portal/tutor");
   return { success: "Class scheduled." };
 }

@@ -27,6 +27,7 @@ test("tutors schedule conflict-checked classes, confirm them with attendance, an
       "../supabase/migrations/202609150002_admissions.sql",
       "../supabase/migrations/202609190004_tutor_assignments.sql",
       "../supabase/migrations/202609200001_class_sessions_attendance.sql",
+      "../supabase/migrations/202609210001_class_sessions_google_meet.sql",
     ]) { await db.exec(await readFile(new URL(path, import.meta.url), "utf8")); }
     for (const id of ids) await db.query("insert into auth.users(id) values($1)", [id]);
     await db.query("update public.profiles set account_status='active' where id=any($1::uuid[])", [ids]);
@@ -67,6 +68,15 @@ test("tutors schedule conflict-checked classes, confirm them with attendance, an
     await assert.rejects(db.query("select public.schedule_class_session($1,'Overlap','Room 1',$2,$3,null,'Schedule class')", [biology, "2030-01-01T10:30:00Z", "2030-01-01T11:30:00Z"]), /venue is already booked/);
     const otherSession = await scalar("select public.schedule_class_session($1,'No conflict','Room 2',$2,$3,null,'Schedule class') as result", [biology, "2030-01-01T10:30:00Z", "2030-01-01T11:30:00Z"]);
     assert.ok(otherSession);
+
+    const googleSession = await scalar(
+      "select public.schedule_class_session($1,'Online class','Online',$2,$3,'https://meet.google.com/abc-defg-hij','Schedule class','evt-123') as result",
+      [biology, "2030-01-01T13:00:00Z", "2030-01-01T14:00:00Z"],
+    );
+    assert.deepEqual(
+      (await db.query("select meeting_link,google_event_id from public.class_sessions where id=$1", [googleSession])).rows[0],
+      { meeting_link: "https://meet.google.com/abc-defg-hij", google_event_id: "evt-123" },
+    );
 
     await asUser(tutor);
     await db.query(

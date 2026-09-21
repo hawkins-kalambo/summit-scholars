@@ -68,3 +68,39 @@ export async function decideRefund(_state: FormResult, form: FormData): Promise<
   revalidatePath("/portal/finance");
   return { success: "Refund decision recorded." };
 }
+export async function setTutorRate(_state: FormResult, form: FormData): Promise<FormResult> {
+  await requireFinance();
+  const input = z.object({
+    tutorId: z.string().uuid(), rateAmount: z.coerce.number().positive(), reason: z.string().trim().min(5).max(2000),
+  }).safeParse(Object.fromEntries(form));
+  if (!input.success) return { error: "Choose a tutor, a rate greater than zero and a reason." };
+  const db = await createSupabaseServerClient();
+  const { error } = await db.rpc("set_tutor_rate", { p_tutor_id: input.data.tutorId, p_rate_amount: input.data.rateAmount, p_reason: input.data.reason });
+  if (error) return failure(error);
+  revalidatePath("/portal/finance");
+  return { success: "Pay rate saved." };
+}
+export async function preparePayrollRun(_state: FormResult, form: FormData): Promise<FormResult> {
+  await requireFinance();
+  const input = z.object({
+    tutorId: z.string().uuid(), periodStart: z.string().min(1), periodEnd: z.string().min(1), reason: z.string().trim().min(5).max(2000),
+  }).safeParse(Object.fromEntries(form));
+  if (!input.success) return { error: "Choose a tutor, a period and a reason." };
+  const db = await createSupabaseServerClient();
+  const { error } = await db.rpc("prepare_payroll_run", {
+    p_tutor_id: input.data.tutorId, p_period_start: input.data.periodStart, p_period_end: input.data.periodEnd, p_reason: input.data.reason,
+  });
+  if (error) return failure(error);
+  revalidatePath("/portal/finance");
+  return { success: "Payroll run prepared. A Finance Administrator must approve it." };
+}
+export async function decidePayrollRun(_state: FormResult, form: FormData): Promise<FormResult> {
+  await requireFinance();
+  const input = z.object({ id: z.string().uuid(), decision: z.enum(["approve", "reject"]), reason: z.string().trim().min(5).max(2000) }).safeParse(Object.fromEntries(form));
+  if (!input.success) return { error: "Choose a decision and provide a reason." };
+  const db = await createSupabaseServerClient();
+  const { error } = await db.rpc("decide_payroll_run", { p_id: input.data.id, p_approve: input.data.decision === "approve", p_reason: input.data.reason });
+  if (error) return failure(error);
+  revalidatePath("/portal/finance");
+  return { success: "Payroll decision recorded." };
+}

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireTutor } from "@/lib/tutoring/data";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isGoogleCalendarConfigured, createMeetEvent, cancelMeetEvent } from "@/lib/calendar/google";
 import type { FormResult } from "@/lib/admissions/validation";
 function failure(error: { code?: string; message: string }): FormResult {
   return { error: error.code === "P0001" ? error.message : "This could not be saved. Check the fields and try again." };
@@ -15,11 +16,24 @@ export async function scheduleSession(_state: FormResult, form: FormData): Promi
     reason: z.string().trim().min(5).max(2000),
   }).safeParse(Object.fromEntries(form));
   if (!input.success) return { error: "Fill in the topic, venue, start, end and a reason." };
+  const startsAt = new Date(input.data.startsAt).toISOString();
+  const endsAt = new Date(input.data.endsAt).toISOString();
+  let meetingLink = input.data.meetingLink || null;
+  let googleEventId: string | null = null;
+  if (isGoogleCalendarConfigured() && form.get("autoGenerateMeet") === "true") {
+    try {
+      const event = await createMeetEvent({ topic: input.data.topic, startsAt, endsAt });
+      meetingLink = event.meetingLink;
+      googleEventId = event.eventId;
+    } catch {
+      return { error: "Could not create the Google Meet link. Try again or enter a link manually." };
+    }
+  }
   const db = await createSupabaseServerClient();
   const { error } = await db.rpc("schedule_class_session", {
     p_course_id: input.data.courseId, p_topic: input.data.topic, p_venue: input.data.venue,
-    p_starts_at: new Date(input.data.startsAt).toISOString(), p_ends_at: new Date(input.data.endsAt).toISOString(),
-    p_meeting_link: input.data.meetingLink || null, p_reason: input.data.reason,
+    p_starts_at: startsAt, p_ends_at: endsAt,
+    p_meeting_link: meetingLink, p_reason: input.data.reason, p_google_event_id: googleEventId,
   });
   if (error) return failure(error);
   revalidatePath("/portal/tutor");
@@ -46,11 +60,20 @@ export async function confirmSession(_state: FormResult, form: FormData): Promis
     }
   }
   const db = await createSupabaseServerClient();
+  let googleEventId: string | null = null;
+  if (status === "cancelled") {
+    const { data: session } = await db.from("class_sessions").select("google_event_id").eq("id", String(sessionId)).maybeSingle();
+    googleEventId = (session as { google_event_id: string | null } | null)?.google_event_id ?? null;
+  }
   const { error } = await db.rpc("confirm_class_session", {
     p_session_id: sessionId, p_status: status, p_actual_starts_at: actualStartsAt, p_actual_ends_at: actualEndsAt,
     p_attendance: attendance, p_reason: String(reason),
   });
   if (error) return failure(error);
+  if (googleEventId) {
+    // Best-effort: the class is already cancelled in our records either way.
+    await cancelMeetEvent(googleEventId).catch(() => undefined);
+  }
   revalidatePath("/portal/tutor");
   return { success: "Session updated." };
 }

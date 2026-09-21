@@ -2,11 +2,12 @@ import { BookOpen, Users, CalendarClock } from "lucide-react";
 import { requireTutor } from "@/lib/tutoring/data";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ManagedForm } from "@/components/admissions/managed-form";
-import { scheduleSession, confirmSession } from "./actions";
+import { scheduleSession, confirmSession, saveTutorProfile } from "./actions";
 export const dynamic = "force-dynamic";
 type Course = { course_id: string; name: string; code: string; student_count: number };
 type RosterRow = { student_id: string; full_name: string; status: string };
 type SessionRow = { id: string; course_id: string; topic: string; venue: string; starts_at: string; ends_at: string; meeting_link: string | null; status: string; actual_starts_at: string | null; actual_ends_at: string | null };
+type TutorProfile = { display_name: string; headline: string; bio: string; subjects: string; visible: boolean };
 
 function ScheduleForm({ courseId }: { courseId: string }) {
   return <ManagedForm action={scheduleSession} label="Schedule class">
@@ -48,12 +49,14 @@ export default async function TutorDashboard() {
   const { data, error } = await db.rpc("tutor_courses");
   if (error) throw new Error("Unable to load your assigned courses.");
   const courses = (data ?? []) as Course[];
-  const [rosters, sessionsResult] = await Promise.all([
+  const [rosters, sessionsResult, profileResult] = await Promise.all([
     Promise.all(courses.map(course => db.rpc("tutor_course_roster", { p_course_id: course.course_id }))),
     db.from("class_sessions").select("*").eq("tutor_id", account.user.id).order("starts_at"),
+    db.from("tutor_profiles").select("display_name,headline,bio,subjects,visible").eq("tutor_id", account.user.id).maybeSingle(),
   ]);
   if (sessionsResult.error) throw new Error("Unable to load your class sessions.");
   const sessions = (sessionsResult.data ?? []) as SessionRow[];
+  const profile = profileResult.data as TutorProfile | null;
   const totalStudents = courses.reduce((sum, course) => sum + Number(course.student_count), 0);
   const upcoming = sessions.filter(session => session.status === "scheduled").length;
   return <div className="dash">
@@ -80,6 +83,16 @@ export default async function TutorDashboard() {
         </div>;
       })}
     </div>}
+    <div className="panel"><header><h2>Public profile</h2></header>
+      <p><small>Shown on the public <a href="/tutors" target="_blank" rel="noreferrer">tutors directory</a> when visible. Your qualifications and documents stay private.</small></p>
+      <ManagedForm action={saveTutorProfile} label="Save public profile">
+        <label>Display name<input name="displayName" required minLength={2} maxLength={200} defaultValue={profile?.display_name ?? account.fullName}/></label>
+        <label>Headline<input name="headline" required minLength={2} maxLength={200} placeholder="Mathematics specialist" defaultValue={profile?.headline ?? ""}/></label>
+        <label>Bio<textarea name="bio" required minLength={10} maxLength={2000} defaultValue={profile?.bio ?? ""}/></label>
+        <label>Subjects<input name="subjects" required minLength={2} maxLength={500} placeholder="Mathematics, Physics" defaultValue={profile?.subjects ?? ""}/></label>
+        <label className="check-label"><input type="checkbox" name="visible" value="true" defaultChecked={profile?.visible ?? true}/>Show on the public tutors directory</label>
+      </ManagedForm>
+    </div>
     <p><small>Learning materials and assignments are not yet available and will appear here as those features launch.</small></p>
   </div>;
 }

@@ -54,3 +54,20 @@ export async function confirmSession(_state: FormResult, form: FormData): Promis
   revalidatePath("/portal/tutor");
   return { success: "Session updated." };
 }
+export async function saveTutorProfile(_state: FormResult, form: FormData): Promise<FormResult> {
+  await requireTutor();
+  const input = z.object({
+    displayName: z.string().trim().min(2).max(200), headline: z.string().trim().min(2).max(200),
+    bio: z.string().trim().min(10).max(2000), subjects: z.string().trim().min(2).max(500),
+  }).safeParse(Object.fromEntries(form));
+  if (!input.success) return { error: "Fill in your display name, headline, bio and subjects." };
+  const db = await createSupabaseServerClient();
+  const { error } = await db.rpc("save_tutor_profile", {
+    p_display_name: input.data.displayName, p_headline: input.data.headline, p_bio: input.data.bio,
+    p_subjects: input.data.subjects, p_visible: form.get("visible") === "true",
+  });
+  if (error) return failure(error);
+  revalidatePath("/portal/tutor");
+  revalidatePath("/tutors");
+  return { success: "Public profile saved." };
+}

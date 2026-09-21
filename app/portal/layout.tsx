@@ -22,7 +22,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
     ...portals.filter(portal => canEnterPortal(account.roles, account.status, portal)).map(portal => ({ href: "/portal/home/" + portal, label: portalLabels[portal] + " portal", icon: "home" as const })),
     { href: "/portal/profile", label: "My profile", icon: "profile" },
     { href: "/portal/applications", label: "Applications", icon: "applications" },
-    ...(academic ? [{ href: "/portal/academics", label: "Academic configuration", icon: "academics" as const }, { href: "/portal/admin/enrolments", label: "Course enrolments", icon: "enrolments" as const }, { href: "/portal/admin/library", label: "Manage library", icon: "manageLibrary" as const }] : []),
+    ...(academic ? [{ href: "/portal/academics", label: "Academic configuration", icon: "academics" as const }, { href: "/portal/admin/enrolments", label: "Course enrolments", icon: "enrolments" as const }, { href: "/portal/admin/library", label: "Manage library", icon: "manageLibrary" as const }, { href: "/portal/tutor-applications", label: "Tutor applications", icon: "recruitment" as const }] : []),
     ...(account.roles.includes("student") ? [{ href: "/portal/library", label: "Library", icon: "library" as const }] : []),
     ...(active && account.roles.includes("tutor") ? [{ href: "/portal/tutor", label: "Tutor workspace", icon: "tutor" as const }] : []),
     ...(has(["finance_officer", "finance_administrator"]) ? [{ href: "/portal/finance", label: "Finance", icon: "finance" as const }] : []),

@@ -34,7 +34,10 @@ export default async function PortalLayout({ children }: { children: ReactNode }
       { href: "/portal/admin/library", label: "Manage library", icon: "manageLibrary" as const },
       { href: "/portal/admin/attendance-risk", label: "Attendance risk", icon: "attendanceRisk" as const },
     ] : [] },
-    { label: "Tutor recruitment", items: tutorApplications ? [{ href: "/portal/tutor-applications", label: "Tutor applications", icon: "recruitment" as const }] : [] },
+    { label: "Tutor recruitment", items: tutorApplications ? [
+      { href: "/portal/tutor-applications", label: "Tutor applications", icon: "recruitment" as const },
+      { href: "/portal/vacancies", label: "Vacancies", icon: "recruitment" as const },
+    ] : [] },
     { label: "Finance", items: has(["finance_officer", "finance_administrator"]) ? [{ href: "/portal/finance", label: "Finance", icon: "finance" as const }] : [] },
     { label: "People & access", items: [
       ...(staffAccess ? [{ href: "/portal/staff", label: "Staff access management", icon: "staff" as const }] : []),

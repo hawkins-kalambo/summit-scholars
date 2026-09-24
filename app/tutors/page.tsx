@@ -10,7 +10,7 @@ export default async function TutorsPage() {
   const { data } = await db.from("tutor_profiles").select("display_name,headline,bio,subjects,teaches_online,teaches_in_person").eq("visible", true).order("display_name");
   const tutors = (data ?? []) as TutorProfile[];
   return <div className="site">
-    <header className="top"><Brand/><nav><Link href="/">Home</Link><Link href="/#courses">Courses</Link><Link href="/apply-to-teach">Apply to teach</Link></nav><div><Link className="link" href="/login/student">Log in</Link><Link className="btn gold" href="/register">Register now <ArrowRight size={17}/></Link></div></header>
+    <header className="top"><Brand/><nav><Link href="/">Home</Link><Link href="/#courses">Courses</Link></nav><div><Link className="link" href="/login/student">Log in</Link><Link className="btn gold" href="/register">Register now <ArrowRight size={17}/></Link></div></header>
     <main>
       <section className="section"><div className="heading"><div><span className="eyebrow">Our team</span><h2>Meet our tutors</h2></div><p>Experienced, verified tutors supporting students online and face-to-face.</p></div>
         {!tutors.length ? <p>Tutor profiles will appear here as our team publishes them.</p> : <div className="workspace-grid">{tutors.map((tutor, index) => <article className="account-panel" key={index}>
@@ -21,7 +21,7 @@ export default async function TutorsPage() {
           <p className="status-badge">{[tutor.teaches_online && "Online", tutor.teaches_in_person && "In person"].filter(Boolean).join(" · ") || "Teaching mode not set"}</p>
         </article>)}</div>}
       </section>
-      <section className="cta"><div><span className="eyebrow">Want to teach with us?</span><h2>Share your qualifications.</h2><p>We review every application and welcome tutors across subjects and levels.</p></div><Link className="btn gold" href="/apply-to-teach">Apply to teach <ArrowRight size={17}/></Link></section>
+      <section className="cta"><div><span className="eyebrow">Want to teach with us?</span><h2>Share your qualifications.</h2><p>We review every application and welcome tutors across subjects and levels.</p></div><Link className="btn gold" href="/vacancies">See open positions <ArrowRight size={17}/></Link></section>
     </main>
     <footer><Brand/><p>St. Augustine Hall, next to St. Augustine Catholic Church</p><div><b>0989 127 308 / 0998 878 269</b><span>summitscholarsbridge@gmail.com</span></div></footer>
   </div>;

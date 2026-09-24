@@ -24,6 +24,7 @@ test("public tutor applications require a separate academic administrator to dec
     for (const path of [
       "../supabase/migrations/202609150001_foundation.sql", "../supabase/migrations/202609150002_admissions.sql",
       "../supabase/migrations/202609200004_tutor_recruitment.sql", "../supabase/migrations/202609240002_tutor_recruitment_provisioning.sql",
+      "../supabase/migrations/202609240008_tutor_vacancies_and_documents.sql",
     ]) {
       await db.exec(await readFile(new URL(path, import.meta.url), "utf8"));
     }
@@ -34,28 +35,56 @@ test("public tutor applications require a separate academic administrator to dec
       await db.query("insert into public.user_roles(user_id,role) values($1,$2)", [id, role]);
     }
     const asUser = async id => { await db.exec("reset role"); await db.query("select set_config('request.jwt.claim.sub',$1,false)", [id]); await db.exec("set role authenticated"); };
+    const asAnon = async () => { await db.exec("reset role"); await db.query("select set_config('request.jwt.claim.sub','',false)"); await db.exec("set role anon"); };
     const scalar = async (sql, args = []) => (await db.query(sql, args)).rows[0]?.result;
+
+    // Only academic_admin/system_admin can post a vacancy, and only open
+    // vacancies (visible to anon too) accept applications.
+    await asUser(applicant);
+    await assert.rejects(db.query("select public.create_vacancy('Maths Tutor','Mathematics','A vacancy for a maths tutor',null,'Posting')"), /Academic or System Administrator permission required/);
+
+    await asUser(academicAdmin1);
+    const vacancy = await scalar("select public.create_vacancy('Maths Tutor','Mathematics, Physics','A vacancy for a maths and physics tutor',null,'Posting new vacancy') as result");
+    assert.ok(vacancy);
+    const closedVacancy = await scalar("select public.create_vacancy('Closed Role','History','Already closed',null,'Posting') as result");
+    await db.query("select public.update_vacancy($1,'Closed Role','History','Already closed',false,null,'Closing vacancy')", [closedVacancy]);
+
+    await asAnon();
+    assert.deepEqual((await db.query("select id from public.tutor_vacancies where id=$1", [vacancy])).rows, [{ id: vacancy }]);
+    assert.equal(await scalar("select count(*)::int as result from public.tutor_vacancies where id=$1", [closedVacancy]), 0);
 
     await asUser(suspendedApplicant);
     await assert.rejects(
-      db.query("select public.submit_tutor_application('Suspended Applicant','+265991110000','Mathematics','Some qualification text here','Anytime')"),
+      db.query("select public.submit_tutor_application($1,'Suspended Applicant','+265991110000','Mathematics','Some qualification text here','Anytime')", [vacancy]),
       /eligible account is required/,
     );
 
     await asUser(applicant);
+    await assert.rejects(
+      db.query("select public.submit_tutor_application($1,'Jane Tutor','+265991234567','Mathematics','Some qualification text here','Anytime')", [closedVacancy]),
+      /vacancy is no longer open/,
+    );
     const application = await scalar(
-      "select public.submit_tutor_application('Jane Tutor','+265991234567','Mathematics, Physics','BSc Mathematics, five years private tutoring experience','Weekday evenings and weekends') as result",
+      "select public.submit_tutor_application($1,'Jane Tutor','+265991234567','Mathematics, Physics','BSc Mathematics, five years private tutoring experience','Weekday evenings and weekends') as result",
+      [vacancy],
     );
     assert.ok(application);
     await assert.rejects(
-      db.query("select public.submit_tutor_application('Jane Tutor','+265991234567','Chemistry','Some other qualification text here','Anytime')"),
+      db.query("select public.submit_tutor_application($1,'Jane Tutor','+265991234567','Chemistry','Some other qualification text here','Anytime')", [vacancy]),
       /already have an application/,
     );
 
     const objectPath = applicant + "/" + application + "/certificate.pdf";
     await db.query("insert into storage.objects(bucket_id,name) values('tutor-application-documents',$1)", [objectPath]);
-    await db.query("select public.attach_tutor_application_document($1,$2,'certificate.pdf','application/pdf',1000)", [application, objectPath]);
-    assert.equal(await scalar("select count(*)::int as result from public.tutor_application_documents where application_id=$1", [application]), 1);
+    await assert.rejects(
+      db.query("select public.attach_tutor_application_document($1,$2,'certificate.pdf','application/pdf',1000,'not-a-real-category')", [application, objectPath]),
+      /Choose a valid document type/,
+    );
+    await db.query("select public.attach_tutor_application_document($1,$2,'certificate.pdf','application/pdf',1000,'certificate')", [application, objectPath]);
+    assert.deepEqual(
+      (await db.query("select document_category from public.tutor_application_documents where application_id=$1", [application])).rows[0],
+      { document_category: "certificate" },
+    );
 
     await asUser(academicAdmin1);
     await db.query("select public.review_tutor_application($1,2,'Reviewing credentials')", [application]);
@@ -84,7 +113,8 @@ test("public tutor applications require a separate academic administrator to dec
     // Provisioning is blocked if the applicant's account was suspended after approval.
     await asUser(lateSuspendedApplicant);
     const lateSuspendedApplication = await scalar(
-      "select public.submit_tutor_application('Late Suspended','+265991230000','History','Some qualification text here','Anytime') as result",
+      "select public.submit_tutor_application($1,'Late Suspended','+265991230000','History','Some qualification text here','Anytime') as result",
+      [vacancy],
     );
     await asUser(academicAdmin1);
     await db.query("select public.review_tutor_application($1,1,'Reviewing')", [lateSuspendedApplication]);
@@ -98,7 +128,8 @@ test("public tutor applications require a separate academic administrator to dec
     // A rejected applicant can reapply; an approved/pending one cannot.
     await asUser(otherApplicant);
     const rejectedApplication = await scalar(
-      "select public.submit_tutor_application('Other Applicant','+265997654321','English','Diploma in education','Mornings') as result",
+      "select public.submit_tutor_application($1,'Other Applicant','+265997654321','English','Diploma in education','Mornings') as result",
+      [vacancy],
     );
     await asUser(academicAdmin1);
     await db.query("select public.review_tutor_application($1,1,'Reviewing')", [rejectedApplication]);
@@ -106,17 +137,18 @@ test("public tutor applications require a separate academic administrator to dec
     await db.query("select public.decide_tutor_application($1,2,'reject','Insufficient teaching experience')", [rejectedApplication]);
     await asUser(otherApplicant);
     const secondApplication = await scalar(
-      "select public.submit_tutor_application('Other Applicant','+265997654321','English','Diploma in education plus one year of tutoring since the last application','Mornings and afternoons') as result",
+      "select public.submit_tutor_application($1,'Other Applicant','+265997654321','English','Diploma in education plus one year of tutoring since the last application','Mornings and afternoons') as result",
+      [vacancy],
     );
     assert.ok(secondApplication);
     await assert.rejects(
-      db.query("select public.submit_tutor_application('Other Applicant','+265997654321','English','Another one','Anytime')"),
+      db.query("select public.submit_tutor_application($1,'Other Applicant','+265997654321','English','Another one','Anytime')", [vacancy]),
       /already have an application/,
     );
 
     await asUser(applicant);
     await assert.rejects(
-      db.query("select public.submit_tutor_application('Jane Tutor','+265991234567','Chemistry','Some other qualification text here','Anytime')"),
+      db.query("select public.submit_tutor_application($1,'Jane Tutor','+265991234567','Chemistry','Some other qualification text here','Anytime')", [vacancy]),
       /already holds the tutor role/,
     );
 

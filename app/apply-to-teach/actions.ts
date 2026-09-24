@@ -11,14 +11,14 @@ function failure(error: { code?: string; message: string }): FormResult {
 export async function submitTutorApplication(_state: FormResult, form: FormData): Promise<FormResult> {
   await requireAccount("/login/student");
   const input = z.object({
-    fullName: z.string().trim().min(2).max(200), phone: z.string().trim().max(25),
+    vacancyId: z.string().uuid(), fullName: z.string().trim().min(2).max(200), phone: z.string().trim().max(25),
     subjects: z.string().trim().min(2).max(500), qualifications: z.string().trim().min(10).max(4000),
     availability: z.string().trim().min(2).max(1000),
   }).safeParse(Object.fromEntries(form));
   if (!input.success) return { error: "Fill in your name, phone, subjects, qualifications and availability." };
   const db = await createSupabaseServerClient();
   const { error } = await db.rpc("submit_tutor_application", {
-    p_full_name: input.data.fullName, p_phone: input.data.phone, p_subjects: input.data.subjects,
+    p_vacancy_id: input.data.vacancyId, p_full_name: input.data.fullName, p_phone: input.data.phone, p_subjects: input.data.subjects,
     p_qualifications: input.data.qualifications, p_availability: input.data.availability,
   });
   if (error) return failure(error);
@@ -28,9 +28,10 @@ export async function submitTutorApplication(_state: FormResult, form: FormData)
 export async function uploadTutorDocument(_state: FormResult, form: FormData): Promise<FormResult> {
   const account = await requireAccount("/login/student");
   const id = recordId.safeParse(form.get("applicationId"));
+  const category = z.enum(["cover_letter", "cv", "certificate", "id_document", "other"]).safeParse(form.get("category"));
   const file = form.get("document");
-  if (!id.success || !(file instanceof File) || file.size === 0 || file.size > 10 * 1024 * 1024) {
-    return { error: "Choose a PDF, JPEG or PNG file of up to 10 MB." };
+  if (!id.success || !category.success || !(file instanceof File) || file.size === 0 || file.size > 10 * 1024 * 1024) {
+    return { error: "Choose a document type and a PDF, JPEG or PNG file of up to 10 MB." };
   }
   const type = detectDocumentType(new Uint8Array(await file.slice(0, 8).arrayBuffer()));
   if (!type) return { error: "This file is not a supported PDF or image." };
@@ -38,7 +39,7 @@ export async function uploadTutorDocument(_state: FormResult, form: FormData): P
   const path = account.user.id + "/" + id.data + "/" + crypto.randomUUID() + "." + type.extension;
   const { error: uploadError } = await db.storage.from("tutor-application-documents").upload(path, file, { contentType: type.mime, upsert: false });
   if (uploadError) return { error: "The upload failed. Check the application is still editable and try again." };
-  const { error } = await db.rpc("attach_tutor_application_document", { p_application: id.data, p_path: path, p_name: file.name.slice(0, 200), p_type: type.mime, p_size: file.size });
+  const { error } = await db.rpc("attach_tutor_application_document", { p_application: id.data, p_path: path, p_name: file.name.slice(0, 200), p_type: type.mime, p_size: file.size, p_category: category.data });
   if (error) {
     await db.storage.from("tutor-application-documents").remove([path]);
     return failure(error);

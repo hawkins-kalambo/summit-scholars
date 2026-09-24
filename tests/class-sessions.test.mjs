@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
+import { btree_gist } from "@electric-sql/pglite/contrib/btree_gist";
 
 test("tutors schedule conflict-checked classes, confirm them with attendance, and access stays scoped", async () => {
-  const db = new PGlite();
+  const db = new PGlite({ extensions: { btree_gist } });
   const ids = [1, 2, 3, 4, 5, 6].map(n => `90000000-0000-4000-8000-00000000000${n}`);
   const [academicAdmin, tutor, otherTutor, student1, student2, superAdmin] = ids;
   const university = "10000000-0000-4000-8000-000000000001";
@@ -29,6 +30,7 @@ test("tutors schedule conflict-checked classes, confirm them with attendance, an
       "../supabase/migrations/202609200001_class_sessions_attendance.sql",
       "../supabase/migrations/202609210001_class_sessions_google_meet.sql",
       "../supabase/migrations/202609210003_class_sessions_google_meet_details.sql",
+      "../supabase/migrations/202609240004_class_sessions_concurrency.sql",
     ]) { await db.exec(await readFile(new URL(path, import.meta.url), "utf8")); }
     for (const id of ids) await db.query("insert into auth.users(id) values($1)", [id]);
     await db.query("update public.profiles set account_status='active' where id=any($1::uuid[])", [ids]);
@@ -117,5 +119,17 @@ test("tutors schedule conflict-checked classes, confirm them with attendance, an
     await asUser(student2);
     assert.equal(await scalar("select count(*)::int as result from public.class_sessions where id=$1", [session]), 0);
     assert.equal(await scalar("select count(*)::int as result from public.session_attendance where session_id=$1", [session]), 0);
+
+    // The exists() pre-checks give a friendly error sequentially; the EXCLUDE
+    // constraints are the real backstop a genuine race would hit -- proven
+    // here by inserting raw conflicting rows directly, bypassing the RPC.
+    await db.exec("reset role");
+    await assert.rejects(
+      db.query(
+        "insert into public.class_sessions(course_id,tutor_id,topic,venue,starts_at,ends_at) values($1,$2,'Race','Room 9',$3,$4)",
+        [precalc, otherTutor, "2030-01-01T13:00:00Z", "2030-01-01T14:00:00Z"],
+      ),
+      /class_sessions_no_tutor_overlap/,
+    );
   } finally { await db.close(); }
 });

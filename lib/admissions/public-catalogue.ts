@@ -16,7 +16,9 @@ export async function getPublicCourses(): Promise<PublicCourse[]> {
   // Always query anonymously: a signed-in staff member must not expose drafts on the public site.
   const db=createClient(config.url,config.key,{auth:{persistSession:false,autoRefreshToken:false}});
   const [courses,universities]=await Promise.all([
-    db.from("courses").select("id,name,description,level,university_id").order("name"),
+    // RLS already restricts anon reads to published courses; filtering here
+    // too means a policy misconfiguration can't leak drafts on its own.
+    db.from("courses").select("id,name,description,level,university_id").eq("published",true).order("name"),
     db.from("universities").select("id,name"),
   ]);
   if (courses.error || universities.error) return [];

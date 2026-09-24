@@ -3,11 +3,11 @@ import { ArrowRight } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 function Brand() { return <div className="brand"><span className="peak">▲</span><span><b>Summit ScholarsBridge</b><small>Academic Solutions</small></span></div>; }
-type TutorProfile = { display_name: string; headline: string; bio: string; subjects: string };
+type TutorProfile = { display_name: string; headline: string; bio: string; subjects: string; teaches_online: boolean; teaches_in_person: boolean };
 
 export default async function TutorsPage() {
   const db = await createSupabaseServerClient();
-  const { data } = await db.from("tutor_profiles").select("display_name,headline,bio,subjects").eq("visible", true).order("display_name");
+  const { data } = await db.from("tutor_profiles").select("display_name,headline,bio,subjects,teaches_online,teaches_in_person").eq("visible", true).order("display_name");
   const tutors = (data ?? []) as TutorProfile[];
   return <div className="site">
     <header className="top"><Brand/><nav><Link href="/">Home</Link><Link href="/#courses">Courses</Link><Link href="/apply-to-teach">Apply to teach</Link></nav><div><Link className="link" href="/login/student">Log in</Link><Link className="btn gold" href="/register">Register now <ArrowRight size={17}/></Link></div></header>
@@ -18,6 +18,7 @@ export default async function TutorsPage() {
           <h2>{tutor.display_name}</h2>
           <p><strong>{tutor.headline}</strong></p>
           <p>{tutor.bio}</p>
+          <p className="status-badge">{[tutor.teaches_online && "Online", tutor.teaches_in_person && "In person"].filter(Boolean).join(" · ") || "Teaching mode not set"}</p>
         </article>)}</div>}
       </section>
       <section className="cta"><div><span className="eyebrow">Want to teach with us?</span><h2>Share your qualifications.</h2><p>We review every application and welcome tutors across subjects and levels.</p></div><Link className="btn gold" href="/apply-to-teach">Apply to teach <ArrowRight size={17}/></Link></section>

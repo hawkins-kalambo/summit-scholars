@@ -107,6 +107,7 @@ export async function saveTutorProfile(_state: FormResult, form: FormData): Prom
   const { error } = await db.rpc("save_tutor_profile", {
     p_display_name: input.data.displayName, p_headline: input.data.headline, p_bio: input.data.bio,
     p_subjects: input.data.subjects, p_visible: form.get("visible") === "true",
+    p_teaches_online: form.get("teachesOnline") === "true", p_teaches_in_person: form.get("teachesInPerson") === "true",
   });
   if (error) return failure(error);
   revalidatePath("/portal/tutor");

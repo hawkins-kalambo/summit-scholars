@@ -21,7 +21,10 @@ test("tutors control their own public profile, and visibility governs anonymous 
       alter table storage.objects enable row level security;
       grant select,insert,update,delete on storage.objects to authenticated;
     `);
-    for (const path of ["../supabase/migrations/202609150001_foundation.sql", "../supabase/migrations/202609200006_tutor_public_profiles.sql"]) {
+    for (const path of [
+      "../supabase/migrations/202609150001_foundation.sql", "../supabase/migrations/202609200006_tutor_public_profiles.sql",
+      "../supabase/migrations/202609240007_tutor_profile_visibility_and_modes.sql",
+    ]) {
       await db.exec(await readFile(new URL(path, import.meta.url), "utf8"));
     }
     for (const id of ids) await db.query("insert into auth.users(id) values($1)", [id]);
@@ -57,5 +60,29 @@ test("tutors control their own public profile, and visibility governs anonymous 
 
     await asUser(tutor);
     assert.equal(await scalar("select visible as result from public.tutor_profiles where tutor_id=$1", [tutor]), false);
+
+    await assert.rejects(
+      db.query("select public.save_tutor_profile('Jane Tutor','Mathematics specialist','Five years of private tutoring experience in secondary and university mathematics.','Mathematics, Physics',true,false,false)"),
+      /Choose at least one teaching mode/,
+    );
+    await db.query("select public.save_tutor_profile('Jane Tutor','Mathematics specialist','Five years of private tutoring experience in secondary and university mathematics.','Mathematics, Physics',true,true,true)");
+    assert.deepEqual(
+      (await db.query("select teaches_online,teaches_in_person from public.tutor_profiles where tutor_id=$1", [tutor])).rows[0],
+      { teaches_online: true, teaches_in_person: true },
+    );
+
+    // A visible profile still hides itself once the tutor loses the role or is suspended.
+    await asAnon();
+    assert.equal(await scalar("select count(*)::int as result from public.tutor_profiles where tutor_id=$1", [tutor]), 1);
+    await db.exec("reset role");
+    await db.query("update public.profiles set account_status='suspended' where id=$1", [tutor]);
+    await asAnon();
+    assert.equal(await scalar("select count(*)::int as result from public.tutor_profiles where tutor_id=$1", [tutor]), 0);
+
+    await db.exec("reset role");
+    await db.query("update public.profiles set account_status='active' where id=$1", [tutor]);
+    await db.query("delete from public.user_roles where user_id=$1 and role='tutor'", [tutor]);
+    await asAnon();
+    assert.equal(await scalar("select count(*)::int as result from public.tutor_profiles where tutor_id=$1", [tutor]), 0);
   } finally { await db.close(); }
 });

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 type Course = { course_id: string; name: string; code: string; student_count: number };
 type RosterRow = { student_id: string; full_name: string; status: string };
 type SessionRow = { id: string; course_id: string; topic: string; venue: string; starts_at: string; ends_at: string; meeting_link: string | null; google_event_html_link: string | null; status: string; actual_starts_at: string | null; actual_ends_at: string | null };
-type TutorProfile = { display_name: string; headline: string; bio: string; subjects: string; visible: boolean };
+type TutorProfile = { display_name: string; headline: string; bio: string; subjects: string; visible: boolean; teaches_online: boolean; teaches_in_person: boolean };
 type PayrollRun = { id: string; period_start: string; period_end: string; session_count: number; total_amount: number; status: string };
 
 function ScheduleForm({ courseId, courseName, googleConfigured }: { courseId: string; courseName: string; googleConfigured: boolean }) {
@@ -61,7 +61,7 @@ export default async function TutorDashboard() {
   const [rosters, sessionsResult, profileResult, rateResult, payrollRunsResult] = await Promise.all([
     Promise.all(courses.map(course => db.rpc("tutor_course_roster", { p_course_id: course.course_id }))),
     db.from("class_sessions").select("*").eq("tutor_id", account.user.id).order("starts_at"),
-    db.from("tutor_profiles").select("display_name,headline,bio,subjects,visible").eq("tutor_id", account.user.id).maybeSingle(),
+    db.from("tutor_profiles").select("display_name,headline,bio,subjects,visible,teaches_online,teaches_in_person").eq("tutor_id", account.user.id).maybeSingle(),
     db.from("tutor_rates").select("rate_amount").eq("tutor_id", account.user.id).order("effective_from", { ascending: false }).limit(1).maybeSingle(),
     db.from("payroll_runs").select("id,period_start,period_end,session_count,total_amount,status").eq("tutor_id", account.user.id).order("created_at", { ascending: false }),
   ]);
@@ -110,6 +110,10 @@ export default async function TutorDashboard() {
         <label>Headline<input name="headline" required minLength={2} maxLength={200} placeholder="Mathematics specialist" defaultValue={profile?.headline ?? ""}/></label>
         <label>Bio<textarea name="bio" required minLength={10} maxLength={2000} defaultValue={profile?.bio ?? ""}/></label>
         <label>Subjects<input name="subjects" required minLength={2} maxLength={500} placeholder="Mathematics, Physics" defaultValue={profile?.subjects ?? ""}/></label>
+        <fieldset><legend>How do you teach?</legend>
+          <label className="check-label"><input type="checkbox" name="teachesOnline" value="true" defaultChecked={profile?.teaches_online ?? true}/>Online (video call / Google Meet)</label>
+          <label className="check-label"><input type="checkbox" name="teachesInPerson" value="true" defaultChecked={profile?.teaches_in_person ?? false}/>In person</label>
+        </fieldset>
         <label className="check-label"><input type="checkbox" name="visible" value="true" defaultChecked={profile?.visible ?? true}/>Show on the public tutors directory</label>
       </ManagedForm>
     </div>

@@ -50,8 +50,17 @@ export async function register(_previous: AuthResult, form: FormData): Promise<A
         emailRedirectTo: origin + "/auth/confirm",
       },
     });
-    if (error) return { error: "Unable to create the account. Please try again later or contact support." };
-  } catch {
+    if (error) {
+      // Log the real reason server-side (never shown to the client) so a
+      // misconfigured mail provider or rate limit is diagnosable, instead of
+      // every failure looking identical from the outside.
+      console.error("Registration failed", { status: error.status, code: error.code });
+      if (error.code === "over_email_send_rate_limit") return { error: "Too many attempts. Please wait a few minutes and try again." };
+      if (error.code === "user_already_exists") return { error: "An account with this email already exists. Sign in or use password recovery." };
+      return { error: "Unable to create the account. Please try again later or contact support." };
+    }
+  } catch (error) {
+    console.error("Registration failed unexpectedly", error instanceof Error ? error.message : "unknown error");
     return { error: "Registration is temporarily unavailable. Please try again." };
   }
   return { success: "Check your inbox for a verification link. If you already have an account, sign in or use password recovery." };

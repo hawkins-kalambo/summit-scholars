@@ -2,12 +2,15 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireAccount } from "@/lib/auth/session";
-import { roles } from "@/lib/auth/roles";
+import { roles, type Role } from "@/lib/auth/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { FormResult } from "@/lib/admissions/validation";
 
+const staffAccessRoles: readonly Role[] = ["super_admin", "system_admin", "auditor"];
+
 export async function requestStaffAccess(_state: FormResult, form: FormData): Promise<FormResult> {
-  await requireAccount();
+  const account = await requireAccount();
+  if (account.status !== "active" || !account.roles.some(role => staffAccessRoles.includes(role))) return { error: "Staff access management permission required." };
   const input = z.object({ email: z.string().email().max(254), role: z.enum(roles).exclude(["student"]), operation: z.enum(["grant", "revoke"]), reason: z.string().trim().min(5).max(2000) }).safeParse(Object.fromEntries(form));
   if (!input.success) return { error: "Enter a valid email, staff role, operation and reason." };
   const db = await createSupabaseServerClient();
@@ -18,7 +21,8 @@ export async function requestStaffAccess(_state: FormResult, form: FormData): Pr
 }
 
 export async function decideStaffAccess(_state: FormResult, form: FormData): Promise<FormResult> {
-  await requireAccount();
+  const account = await requireAccount();
+  if (account.status !== "active" || !account.roles.includes("super_admin")) return { error: "Super Administrator permission required." };
   const input = z.object({ id: z.string().uuid(), decision: z.enum(["approve", "reject"]), reason: z.string().trim().min(5).max(2000) }).safeParse(Object.fromEntries(form));
   if (!input.success) return { error: "Enter a decision and reason." };
   const db = await createSupabaseServerClient();

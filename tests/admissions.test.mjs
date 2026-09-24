@@ -30,7 +30,7 @@ test("admissions enforce consent, ownership, separate approval, versioning and i
       alter table storage.objects enable row level security;
       grant select,insert,update,delete on storage.objects to authenticated;
     `);
-    for (const path of ["../supabase/migrations/202609150001_foundation.sql","../supabase/seed.sql","../supabase/migrations/202609150002_admissions.sql","../supabase/migrations/202609150003_notifications.sql"]) {
+    for (const path of ["../supabase/migrations/202609150001_foundation.sql","../supabase/seed.sql","../supabase/migrations/202609150002_admissions.sql","../supabase/migrations/202609150003_notifications.sql","../supabase/migrations/202609240006_application_history_audit.sql"]) {
       await db.exec(await readFile(new URL(path,import.meta.url),"utf8"));
     }
     for (const id of ids) await db.query("insert into auth.users(id,raw_user_meta_data) values($1,$2)",[id,JSON.stringify({full_name:"Original Name"})]);

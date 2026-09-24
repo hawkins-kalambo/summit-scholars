@@ -30,6 +30,8 @@ test("payment adjustments and refunds require a separate decider from the reques
       "../supabase/migrations/202609190005_programme_department_course_capacity.sql",
       "../supabase/migrations/202609200002_finance_invoices.sql",
       "../supabase/migrations/202609200003_finance_adjustments_refunds.sql",
+      "../supabase/migrations/202609240001_finance_refund_cap.sql",
+      "../supabase/migrations/202609240005_admissions_capacity_lock.sql",
     ]) { await db.exec(await readFile(new URL(path, import.meta.url), "utf8")); }
     for (const id of ids) await db.query("insert into auth.users(id) values($1)", [id]);
     await db.query("update public.profiles set account_status='active' where id=any($1::uuid[])", [[academicAdmin, admissionsOfficer, superAdmin, financeOfficer, financeAdministrator, dualAdjuster, dualRefunder]]);
@@ -94,14 +96,13 @@ test("payment adjustments and refunds require a separate decider from the reques
 
     // Refund: finance_officer prepares, a different super_admin approves.
     await asUser(financeOfficer);
-    await assert.rejects(db.query("select public.request_refund($1,90000,'Excessive refund')", [invoice]), /cannot exceed the invoice total/);
+    await assert.rejects(db.query("select public.request_refund($1,90000,'Excessive refund')", [invoice]), /remaining refundable amount/);
     const refund = await scalar("select public.request_refund($1,15000,'Student withdrew from one component') as result", [invoice]);
     assert.ok(refund);
+    // Only one pending refund request per invoice at a time (closes the
+    // gap that let repeated refunds silently exceed the invoice total).
+    await assert.rejects(db.query("select public.request_refund($1,1000,'Second pending request')", [invoice]), /duplicate key/);
     await assert.rejects(db.query("select public.decide_refund($1,true,'Self-approving')", [refund]), /Super Administrator permission required/);
-
-    await asUser(dualRefunder);
-    const selfRefund = await scalar("select public.request_refund($1,500,'Self test') as result", [invoice]);
-    await assert.rejects(db.query("select public.decide_refund($1,true,'Approving my own request')", [selfRefund]), /different Super Administrator/);
 
     await asUser(superAdmin);
     await db.query("select public.decide_refund($1,true,'Withdrawal confirmed')", [refund]);
@@ -110,6 +111,21 @@ test("payment adjustments and refunds require a separate decider from the reques
       (await db.query("select refunded_amount,balance_amount,status from public.invoices where id=$1", [invoice])).rows[0],
       { refunded_amount: "15000.00", balance_amount: "0.00", status: "refunded" },
     );
+
+    await asUser(dualRefunder);
+    const selfRefund = await scalar("select public.request_refund($1,500,'Self test') as result", [invoice]);
+    await assert.rejects(db.query("select public.decide_refund($1,true,'Approving my own request')", [selfRefund]), /different Super Administrator/);
+    await asUser(superAdmin);
+    await db.query("select public.decide_refund($1,true,'Second withdrawal confirmed')", [selfRefund]);
+    await db.exec("reset role");
+    assert.equal(await scalar("select refunded_amount as result from public.invoices where id=$1", [invoice]), "15500.00");
+
+    // Defense in depth: even a stale/bypassed request cannot push cumulative
+    // refunds past the invoice total when it is actually decided.
+    const oversizedRefund = "b0000000-0000-4000-8000-000000000009";
+    await db.query("insert into public.refund_requests(id,invoice_id,amount,reason,requested_by) values($1,$2,30000,'Simulated stale request',$3)", [oversizedRefund, invoice, financeOfficer]);
+    await asUser(superAdmin);
+    await assert.rejects(db.query("select public.decide_refund($1,true,'Would exceed total')", [oversizedRefund]), /would exceed the invoice total/);
 
     await asUser(student1);
     assert.equal(await scalar("select count(*)::int as result from public.invoices where id=$1", [invoice]), 1);

@@ -29,6 +29,7 @@ test("tutor payroll requires a rate, counts only completed classes in period, an
       "../supabase/migrations/202609200001_class_sessions_attendance.sql",
       "../supabase/migrations/202609210001_class_sessions_google_meet.sql",
       "../supabase/migrations/202609210002_tutor_payroll.sql",
+      "../supabase/migrations/202609240003_tutor_payroll_race_fix.sql",
     ]) { await db.exec(await readFile(new URL(path, import.meta.url), "utf8")); }
     for (const id of ids) await db.query("insert into auth.users(id) values($1)", [id]);
     await db.query("update public.profiles set account_status='active' where id=any($1::uuid[])", [ids]);
@@ -116,5 +117,14 @@ test("tutor payroll requires a rate, counts only completed classes in period, an
     await asUser(financeOfficer);
     const tutors = (await db.query("select * from public.finance_tutors()")).rows;
     assert.ok(tutors.some(row => row.tutor_id === tutor && Number(row.rate_amount) === 5000));
+
+    // A session can never be linked to two active runs at once -- the real
+    // backstop against double-paying a session under concurrent requests.
+    await db.exec("reset role");
+    const claimedSession = (await db.query("select session_id from public.payroll_run_sessions where payroll_run_id=$1 limit 1", [rerun])).rows[0].session_id;
+    await assert.rejects(
+      db.query("insert into public.payroll_run_sessions(payroll_run_id,session_id) values($1,$2)", [run, claimedSession]),
+      /duplicate key/,
+    );
   } finally { await db.close(); }
 });

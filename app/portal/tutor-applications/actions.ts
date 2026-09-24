@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireAcademicManager } from "@/lib/admissions/data";
+import { requireAdminArea } from "@/lib/admin/access";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordId, type FormResult } from "@/lib/admissions/validation";
 function failure(error: { code?: string; message: string }): FormResult {
@@ -30,5 +31,15 @@ export async function decideTutorApplication(_state: FormResult, form: FormData)
   const { error } = await db.rpc("decide_tutor_application", { p_id: input.data.id, p_revision: input.data.revision, p_decision: input.data.decision, p_note: input.data.note });
   if (error) return failure(error);
   revalidatePath("/portal/tutor-applications");
-  return { success: "Decision recorded." };
+  return { success: input.data.decision === "approve" ? "Recommended for the tutor role. A System Administrator must now provision the account." : "Decision recorded." };
+}
+export async function provisionTutorAccount(_state: FormResult, form: FormData): Promise<FormResult> {
+  await requireAdminArea("users");
+  const input = z.object({ id: z.string().uuid(), reason: z.string().trim().min(5).max(2000) }).safeParse(Object.fromEntries(form));
+  if (!input.success) return { error: "Provide a reason for provisioning this account." };
+  const db = await createSupabaseServerClient();
+  const { error } = await db.rpc("provision_tutor_account", { p_id: input.data.id, p_reason: input.data.reason });
+  if (error) return failure(error);
+  revalidatePath("/portal/tutor-applications");
+  return { success: "Account provisioned. The tutor has been emailed to sign in." };
 }

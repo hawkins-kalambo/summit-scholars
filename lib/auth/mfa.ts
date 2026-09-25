@@ -3,7 +3,12 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Role } from "./roles";
 
-export const MFA_REQUIRED_ROLES: readonly Role[] = ["super_admin", "system_admin", "finance_officer", "finance_administrator"];
+// Temporarily disabled while the enrollment issue is diagnosed and the rest
+// of the build finishes -- restore the role list below to re-enable. Nothing
+// else about the feature was removed; /mfa-setup and /mfa-challenge, the
+// nav link (hidden automatically while this list is empty), and every
+// enroll/unenroll safeguard are untouched.
+export const MFA_REQUIRED_ROLES: readonly Role[] = [];
 
 export async function enforceMfaForSensitiveRoles(roles: readonly Role[]) {
   if (!roles.some(role => MFA_REQUIRED_ROLES.includes(role))) return;

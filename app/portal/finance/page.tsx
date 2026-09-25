@@ -48,12 +48,13 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     Promise.all(invoices.map(invoice => db.from("payments").select("id,amount,method,reference,created_at").eq("invoice_id", invoice.id).order("created_at"))),
   ]);
   const link = (n: number) => "/portal/finance?" + new URLSearchParams({ status, page: String(n) });
-  const canRecord = account.roles.includes("finance_officer") || account.roles.includes("super_admin");
-  const canDecideAdjustments = account.roles.includes("finance_administrator");
-  const canDecideRefunds = account.roles.includes("super_admin");
-  const canSetRates = account.roles.includes("finance_administrator");
+  const isSuperAdmin = account.roles.includes("super_admin");
+  const canRecord = account.roles.includes("finance_officer") || isSuperAdmin;
+  const canDecideAdjustments = account.roles.includes("finance_administrator") || isSuperAdmin;
+  const canDecideRefunds = isSuperAdmin;
+  const canSetRates = account.roles.includes("finance_administrator") || isSuperAdmin;
   const canPrepareRuns = canRecord;
-  const canDecidePayroll = account.roles.includes("finance_administrator");
+  const canDecidePayroll = account.roles.includes("finance_administrator") || isSuperAdmin;
   return <div className="dash">
     <div className="dash-title"><div><span className="eyebrow">Finance</span><h1>Welcome, {account.fullName}.</h1><p>Invoices, payments and balances across the institution.</p></div></div>
     <div className="stats">

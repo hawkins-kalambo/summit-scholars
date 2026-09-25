@@ -30,7 +30,12 @@ export async function manageMfaEnrollment(state: MfaEnrollState, form: FormData)
     if (aal?.currentLevel !== "aal2") return { error: "Verify your current two-factor code, or remove it, before setting up a new one." };
   }
   const { data, error } = await db.auth.mfa.enroll({ factorType: "totp" });
-  if (error) return { error: "Unable to start two-factor setup. Please try again." };
+  if (error) {
+    // Sanitized to the client; logged here so a project-level MFA
+    // misconfiguration or factor-limit issue is actually diagnosable.
+    console.error("MFA enrollment failed", { status: error.status, code: error.code, message: error.message });
+    return { error: "Unable to start two-factor setup. Please try again." };
+  }
   return { factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret };
 }
 

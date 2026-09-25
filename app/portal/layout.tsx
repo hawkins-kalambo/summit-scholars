@@ -26,7 +26,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
       { href: "/portal/profile", label: "My profile", icon: "profile" as const },
       { href: "/portal/applications", label: "Applications", icon: "applications" as const },
       ...(account.roles.includes("student") ? [{ href: "/portal/library", label: "Library", icon: "library" as const }] : []),
-      ...(active && account.roles.includes("tutor") ? [{ href: "/portal/tutor", label: "Tutor workspace", icon: "tutor" as const }] : []),
+      ...(active && account.roles.includes("tutor") ? [{ href: "/portal/tutor", label: "Tutor workspace", icon: "tutor" as const }, { href: "/portal/tutor/pay", label: "My pay", icon: "finance" as const }] : []),
     ] },
     { label: "Academics", items: academic ? [
       { href: "/portal/academics", label: "Academic configuration", icon: "academics" as const },

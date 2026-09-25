@@ -9,7 +9,6 @@ type Course = { course_id: string; name: string; code: string; student_count: nu
 type RosterRow = { student_id: string; full_name: string; status: string };
 type SessionRow = { id: string; course_id: string; topic: string; venue: string; starts_at: string; ends_at: string; meeting_link: string | null; google_event_html_link: string | null; status: string; actual_starts_at: string | null; actual_ends_at: string | null };
 type TutorProfile = { display_name: string; headline: string; bio: string; subjects: string; visible: boolean; teaches_online: boolean; teaches_in_person: boolean };
-type PayrollRun = { id: string; period_start: string; period_end: string; session_count: number; total_amount: number; status: string };
 
 function ScheduleForm({ courseId, courseName, googleConfigured }: { courseId: string; courseName: string; googleConfigured: boolean }) {
   return <ManagedForm action={scheduleSession} label="Schedule class">
@@ -58,18 +57,14 @@ export default async function TutorDashboard() {
   const { data, error } = await db.rpc("tutor_courses");
   if (error) throw new Error("Unable to load your assigned courses.");
   const courses = (data ?? []) as Course[];
-  const [rosters, sessionsResult, profileResult, rateResult, payrollRunsResult] = await Promise.all([
+  const [rosters, sessionsResult, profileResult] = await Promise.all([
     Promise.all(courses.map(course => db.rpc("tutor_course_roster", { p_course_id: course.course_id }))),
     db.from("class_sessions").select("*").eq("tutor_id", account.user.id).order("starts_at"),
     db.from("tutor_profiles").select("display_name,headline,bio,subjects,visible,teaches_online,teaches_in_person").eq("tutor_id", account.user.id).maybeSingle(),
-    db.from("tutor_rates").select("rate_amount").eq("tutor_id", account.user.id).order("effective_from", { ascending: false }).limit(1).maybeSingle(),
-    db.from("payroll_runs").select("id,period_start,period_end,session_count,total_amount,status").eq("tutor_id", account.user.id).order("created_at", { ascending: false }),
   ]);
   if (sessionsResult.error) throw new Error("Unable to load your class sessions.");
   const sessions = (sessionsResult.data ?? []) as SessionRow[];
   const profile = profileResult.data as TutorProfile | null;
-  const rate = (rateResult.data as { rate_amount: number } | null)?.rate_amount ?? null;
-  const payrollRuns = (payrollRunsResult.data ?? []) as PayrollRun[];
   const totalStudents = courses.reduce((sum, course) => sum + Number(course.student_count), 0);
   const scheduledSessions = sessions.filter(session => session.status === "scheduled");
   const upcoming = scheduledSessions.length;
@@ -108,12 +103,6 @@ export default async function TutorDashboard() {
         </div>;
       })}
     </div>}
-    <div className="panel"><header><h2>My pay</h2></header>
-      <p>{rate ? <>MWK {Number(rate).toLocaleString("en-GB")} per completed class.</> : "No pay rate has been set yet."}</p>
-      {payrollRuns.length ? <ul>{payrollRuns.map(run => <li key={run.id}>
-        {run.period_start} to {run.period_end} · {run.session_count} classes · MWK {Number(run.total_amount).toLocaleString("en-GB")} · {run.status}
-      </li>)}</ul> : <p>No payroll runs yet.</p>}
-    </div>
     <div className="panel"><header><h2>Public profile</h2></header>
       <p><small>Shown on the public <a href="/tutors" target="_blank" rel="noreferrer">tutors directory</a> when visible. Your qualifications and documents stay private.</small></p>
       <ManagedForm action={saveTutorProfile} label="Save public profile">

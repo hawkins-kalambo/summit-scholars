@@ -1,4 +1,4 @@
-import { BookOpen, Users, CalendarClock } from "lucide-react";
+import { BookOpen, Users, CalendarClock, Video } from "lucide-react";
 import { requireTutor } from "@/lib/tutoring/data";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isGoogleCalendarConfigured } from "@/lib/calendar/google";
@@ -71,13 +71,24 @@ export default async function TutorDashboard() {
   const rate = (rateResult.data as { rate_amount: number } | null)?.rate_amount ?? null;
   const payrollRuns = (payrollRunsResult.data ?? []) as PayrollRun[];
   const totalStudents = courses.reduce((sum, course) => sum + Number(course.student_count), 0);
-  const upcoming = sessions.filter(session => session.status === "scheduled").length;
+  const scheduledSessions = sessions.filter(session => session.status === "scheduled");
+  const upcoming = scheduledSessions.length;
+  const courseNameById = new Map(courses.map(course => [course.course_id, course.name]));
   return <div className="dash">
     <div className="dash-title"><div><span className="eyebrow">Tutor</span><h1>Welcome, {account.fullName}.</h1><p>Your assigned courses, classes and attendance.</p></div></div>
     <div className="stats">
       <div className="stat"><i><BookOpen size={21}/></i><div><strong>{courses.length}</strong><span>Assigned courses</span></div></div>
       <div className="stat green"><i><Users size={21}/></i><div><strong>{totalStudents}</strong><span>Enrolled students</span></div></div>
       <div className="stat gold"><i><CalendarClock size={21}/></i><div><strong>{upcoming}</strong><span>Classes to confirm</span></div></div>
+    </div>
+    <div className="panel"><header><h2>Your scheduled classes</h2></header>
+      {scheduledSessions.length ? <ul className="live-class-list">{scheduledSessions.map(session => <li key={session.id}>
+        <div><strong>{courseNameById.get(session.course_id) ?? "Class"}</strong> · {session.topic}<br/>
+          <small>{session.venue} · {new Date(session.starts_at).toLocaleString("en-GB", { timeZone: "Africa/Blantyre" })}</small></div>
+        {session.meeting_link
+          ? <a className="btn teal" href={session.meeting_link} target="_blank" rel="noreferrer"><Video size={16}/> Start / join lesson</a>
+          : <span className="status-badge">In person</span>}
+      </li>)}</ul> : <p>No classes scheduled yet. Use &ldquo;Schedule a class&rdquo; below on the relevant course.</p>}
     </div>
     {courses.length === 0 ? <p>No courses assigned yet. Contact an academic administrator.</p> : <div className="dashgrid">
       {courses.map((course, index) => {
@@ -89,7 +100,7 @@ export default async function TutorDashboard() {
           <p><strong>Classes</strong></p>
           {courseSessions.length ? <ul>{courseSessions.map(session => <li key={session.id}>
             {session.topic} · {session.venue} · {new Date(session.starts_at).toLocaleString("en-GB", { timeZone: "Africa/Blantyre" })} · {session.status.replaceAll("_", " ")}
-            {session.meeting_link && <> · <a href={session.meeting_link} target="_blank" rel="noreferrer">Meeting link</a></>}
+            {session.meeting_link && <> · <a href={session.meeting_link} target="_blank" rel="noreferrer">Start / join lesson</a></>}
             {session.google_event_html_link && <> · <a href={session.google_event_html_link} target="_blank" rel="noreferrer">Calendar event</a></>}
             {session.status === "scheduled" && <details><summary>Confirm this class</summary><ConfirmForm session={session} roster={roster}/></details>}
           </li>)}</ul> : <p>No classes scheduled yet.</p>}

@@ -44,7 +44,7 @@ export default async function PortalHome({ params }: { params: Promise<{ portal:
           <p><small>Assignments and results are not yet available and will appear here as those features launch.</small></p>
         </div>
         <div className="panel"><header><h2>Next class</h2></header>
-          {nextSession ? <p>{nextSession.courses?.name ?? "Class"} · {nextSession.topic}<br/>{nextSession.venue} · {new Date(nextSession.starts_at).toLocaleString("en-GB", { timeZone: "Africa/Blantyre" })}{nextSession.meeting_link && <><br/><a href={nextSession.meeting_link} target="_blank" rel="noreferrer">Join meeting</a></>}</p> : <p>No upcoming classes scheduled.</p>}
+          {nextSession ? <p>{nextSession.courses?.name ?? "Class"} · {nextSession.topic}<br/>{nextSession.venue} · {new Date(nextSession.starts_at).toLocaleString("en-GB", { timeZone: "Africa/Blantyre" })}{nextSession.meeting_link && <><br/><a className="btn teal join-lesson" href={nextSession.meeting_link} target="_blank" rel="noreferrer">Join lesson</a></>}</p> : <p>No upcoming classes scheduled.</p>}
         </div>
         <div className="panel"><header><h2>Billing</h2></header>
           {invoices.length ? <div className="rows">{invoices.map((invoice, index) => <div key={index}><span>{invoice.reference}</span><span>MWK {Number(invoice.total_amount).toLocaleString("en-GB")}</span><span>{invoice.status.replaceAll("_", " ")}</span><span>MWK {Number(invoice.balance_amount).toLocaleString("en-GB")} due</span></div>)}</div>

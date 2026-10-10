@@ -10,5 +10,6 @@ export default function RegisterPage() {
     {!enabled && <UnavailableNotice />}
     <AuthForm mode="register" enabled={enabled} />
     <p className="auth-links">Already registered? <Link href="/login/student">Sign in</Link></p>
+    <p className="auth-links">Prefer not to set a password yet? <Link href="/apply">Apply with just your email</Link></p>
   </AuthShell>;
 }

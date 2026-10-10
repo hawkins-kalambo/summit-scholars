@@ -10,7 +10,7 @@ export default async function VacanciesPage() {
   const { data } = await db.from("tutor_vacancies").select("id,title,subjects,description,closes_at").eq("is_open", true).order("created_at", { ascending: false });
   const vacancies = (data ?? []) as Vacancy[];
   return <div className="site">
-    <header className="top"><Brand/><nav><Link href="/">Home</Link><Link href="/#courses">Courses</Link><Link href="/tutors">Our tutors</Link></nav><div><Link className="link" href="/login/student">Log in</Link><Link className="btn gold" href="/register">Register now <ArrowRight size={17}/></Link></div></header>
+    <header className="top"><Brand/><nav><Link href="/">Home</Link><Link href="/#courses">Courses</Link><Link href="/tutors">Our tutors</Link></nav><div><Link className="link" href="/login/student">Log in</Link><Link className="btn gold" href="/apply">Start application <ArrowRight size={17}/></Link></div></header>
     <main>
       <section className="section"><div className="heading"><div><span className="eyebrow">Careers</span><h2>Open tutor positions</h2></div><p>We post a vacancy here when we&rsquo;re looking for tutors in a specific subject or level.</p></div>
         {!vacancies.length ? <p>There are no open tutor positions right now. Check back soon.</p> : <div className="workspace-grid">{vacancies.map(vacancy => <article className="account-panel" key={vacancy.id}>

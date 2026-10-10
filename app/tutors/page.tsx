@@ -10,7 +10,7 @@ export default async function TutorsPage() {
   const { data } = await db.from("tutor_profiles").select("display_name,headline,bio,subjects,teaches_online,teaches_in_person").eq("visible", true).order("display_name");
   const tutors = (data ?? []) as TutorProfile[];
   return <div className="site">
-    <header className="top"><Brand/><nav><Link href="/">Home</Link><Link href="/#courses">Courses</Link></nav><div><Link className="link" href="/login/student">Log in</Link><Link className="btn gold" href="/register">Register now <ArrowRight size={17}/></Link></div></header>
+    <header className="top"><Brand/><nav><Link href="/">Home</Link><Link href="/#courses">Courses</Link></nav><div><Link className="link" href="/login/student">Log in</Link><Link className="btn gold" href="/apply">Start application <ArrowRight size={17}/></Link></div></header>
     <main>
       <section className="section"><div className="heading"><div><span className="eyebrow">Our team</span><h2>Meet our tutors</h2></div><p>Experienced, verified tutors supporting students online and face-to-face.</p></div>
         {!tutors.length ? <p>Tutor profiles will appear here as our team publishes them.</p> : <div className="workspace-grid">{tutors.map((tutor, index) => <article className="account-panel" key={index}>

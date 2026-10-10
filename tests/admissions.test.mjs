@@ -30,7 +30,7 @@ test("admissions enforce consent, ownership, separate approval, versioning and i
       alter table storage.objects enable row level security;
       grant select,insert,update,delete on storage.objects to authenticated;
     `);
-    for (const path of ["../supabase/migrations/202609150001_foundation.sql","../supabase/seed.sql","../supabase/migrations/202609150002_admissions.sql","../supabase/migrations/202609150003_notifications.sql","../supabase/migrations/202609240006_application_history_audit.sql"]) {
+    for (const path of ["../supabase/migrations/202609150001_foundation.sql","../supabase/seed.sql","../supabase/migrations/202609150002_admissions.sql","../supabase/migrations/202609150003_notifications.sql","../supabase/migrations/202609190001_academic_structure.sql","../supabase/migrations/202609190002_finance_administrator_role.sql","../supabase/migrations/202609190005_programme_department_course_capacity.sql","../supabase/migrations/202609200002_finance_invoices.sql","../supabase/migrations/202609240005_admissions_capacity_lock.sql","../supabase/migrations/202609240006_application_history_audit.sql","../supabase/migrations/202610100001_application_password_setup.sql"]) {
       await db.exec(await readFile(new URL(path,import.meta.url),"utf8"));
     }
     for (const id of ids) await db.query("insert into auth.users(id,raw_user_meta_data) values($1,$2)",[id,JSON.stringify({full_name:"Original Name"})]);
@@ -94,7 +94,10 @@ test("admissions enforce consent, ownership, separate approval, versioning and i
     await assert.rejects(db.query("select public.decide_application($1,5,'approve','Admission approved')",[application]),/different staff/);
     await asUser(approver);
     await assert.rejects(db.query("select public.decide_application($1,null,'approve','Admission approved')",[application]),/changed/);
-    await db.query("select public.decide_application($1,5,'approve','Admission approved')",[application]);
+    // Returns the applicant's email on approval, so the app layer can send a
+    // password-setup link (via the existing forgot-password mechanism) to
+    // applicants who entered through the no-password /apply flow.
+    assert.equal(await scalar("select public.decide_application($1,5,'approve','Admission approved') as result",[application]),"test@example.test");
     await assert.rejects(db.query("select public.decide_application($1,6,'approve','Admission approved')",[application]),/recommendation/);
     await asUser(student);
     const profile=(await db.query("select * from public.profiles")).rows[0];
@@ -125,7 +128,7 @@ test("admissions enforce consent, ownership, separate approval, versioning and i
     await db.query("select public.review_application($1,9,'begin_review','Review resumed')",[second]);
     await db.query("select public.review_application($1,10,'recommend_rejection','Eligibility not met')",[second]);
     await asUser(approver);
-    await db.query("select public.decide_application($1,11,'reject','Application not eligible')",[second]);
+    assert.equal(await scalar("select public.decide_application($1,11,'reject','Application not eligible') as result",[second]),null);
     await asUser(other);
     assert.equal(await scalar("select account_status as result from public.profiles"),"pending");
     const third=await save();

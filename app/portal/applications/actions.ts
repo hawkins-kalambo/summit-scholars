@@ -87,8 +87,14 @@ export async function decideApplication(_state: FormResult, form: FormData): Pro
   const id = recordId.safeParse(form.get("applicationId"));
   if (!id.success) return { error: "Invalid application." };
   const db = await createSupabaseServerClient();
-  const { error } = await db.rpc("decide_application", { p_id: id.data, p_revision: Number(form.get("revision")), p_decision: form.get("decision"), p_note: form.get("note") });
+  const { data: applicantEmail, error } = await db.rpc("decide_application", { p_id: id.data, p_revision: Number(form.get("revision")), p_decision: form.get("decision"), p_note: form.get("note") });
   if (error) return failure(error);
+  // Applicants who entered via /apply have no password yet. Approval re-uses
+  // the existing forgot-password mechanism to let them set one -- there is
+  // no separate "set up your account" flow to build or maintain.
+  if (typeof applicantEmail === "string" && applicantEmail && process.env.APP_URL) {
+    await db.auth.resetPasswordForEmail(applicantEmail, { redirectTo: new URL("/auth/confirm", process.env.APP_URL).href }).catch(() => undefined);
+  }
   revalidatePath("/portal/applications/" + id.data);
   revalidatePath("/portal");
   return { success: "Admission decision recorded." };

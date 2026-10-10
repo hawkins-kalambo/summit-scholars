@@ -9,7 +9,7 @@ export default async function CoursePage({params}:{params:Promise<{id:string}>})
   return <main className="account-content narrow-content"><Link href="/#courses">← Browse courses</Link>
     <section className="account-panel"><span className="eyebrow">Level {course.level} · {course.university}</span><h1>{course.name}</h1><p>{course.description}</p>
     <p>Request academic support through your Summit ScholarsBridge application. Admissions will confirm your course arrangements.</p>
-    <div className="actions"><Link className="btn teal" href="/register">Create a free account</Link><Link className="btn outline-dark" href="/portal/applications">Continue your application</Link></div>
+    <div className="actions"><Link className="btn teal" href="/apply">Start your application</Link><Link className="btn outline-dark" href="/portal/applications">Continue your application</Link></div>
     <p>Summit ScholarsBridge provides independent academic support. Its records are not official university transcripts.</p></section>
   </main>;
 }

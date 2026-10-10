@@ -25,14 +25,15 @@ export default async function PortalLayout({ children }: { children: ReactNode }
       ...portals.filter(portal => canEnterPortal(account.roles, account.status, portal)).map(portal => ({ href: "/portal/home/" + portal, label: portalLabels[portal] + " portal", icon: "home" as const })),
       { href: "/portal/profile", label: "My profile", icon: "profile" as const },
       { href: "/portal/applications", label: "Applications", icon: "applications" as const },
-      ...(account.roles.includes("student") ? [{ href: "/portal/library", label: "Library", icon: "library" as const }] : []),
-      ...(active && account.roles.includes("tutor") ? [{ href: "/portal/tutor", label: "Tutor workspace", icon: "tutor" as const }, { href: "/portal/tutor/pay", label: "My pay", icon: "finance" as const }] : []),
+      ...(account.roles.includes("student") ? [{ href: "/portal/library", label: "Library", icon: "library" as const }, { href: "/portal/assignments", label: "Assignments", icon: "assignments" as const }] : []),
+      ...(active && account.roles.includes("tutor") ? [{ href: "/portal/tutor", label: "Tutor workspace", icon: "tutor" as const }, { href: "/portal/tutor/assignments", label: "Assignments", icon: "assignments" as const }, { href: "/portal/tutor/pay", label: "My pay", icon: "finance" as const }] : []),
     ] },
     { label: "Academics", items: academic ? [
       { href: "/portal/academics", label: "Academic configuration", icon: "academics" as const },
       { href: "/portal/admin/enrolments", label: "Course enrolments", icon: "enrolments" as const },
       { href: "/portal/admin/library", label: "Manage library", icon: "manageLibrary" as const },
       { href: "/portal/admin/attendance-risk", label: "Attendance risk", icon: "attendanceRisk" as const },
+      { href: "/portal/admin/assignment-grades", label: "Assignment grades", icon: "assignments" as const },
     ] : [] },
     { label: "Tutor recruitment", items: tutorApplications ? [
       { href: "/portal/tutor-applications", label: "Tutor applications", icon: "recruitment" as const },

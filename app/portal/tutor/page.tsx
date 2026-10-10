@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BookOpen, Users, CalendarClock, Video } from "lucide-react";
 import { requireTutor } from "@/lib/tutoring/data";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -117,6 +118,6 @@ export default async function TutorDashboard() {
         <label className="check-label"><input type="checkbox" name="visible" value="true" defaultChecked={profile?.visible ?? true}/>Show on the public tutors directory</label>
       </ManagedForm>
     </div>
-    <p><small>Learning materials and assignments are not yet available and will appear here as those features launch.</small></p>
+    <p><small>Set and grade assignments from the <Link href="/portal/tutor/assignments">Assignments</Link> page. Learning materials are not yet available and will appear here as that feature launches.</small></p>
   </div>;
 }

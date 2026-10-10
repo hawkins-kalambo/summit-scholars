@@ -41,7 +41,7 @@ export default async function PortalHome({ params }: { params: Promise<{ portal:
         <div className="panel"><header><h2>Your courses</h2></header>
           {enrolments.length ? <div className="rows">{enrolments.map((enrolment, index) => <div key={index}><span>{enrolment.courses?.code ?? "—"}</span><span>{enrolment.courses?.name ?? "Unknown course"}</span><span>{enrolment.status}</span><span/></div>)}</div>
             : <p>No course registrations yet. Prepare your application to get started.</p>}
-          <p><small>Assignments and results are not yet available and will appear here as those features launch.</small></p>
+          <p><small>View and submit assignments on the <Link href="/portal/assignments">Assignments</Link> page.</small></p>
         </div>
         <div className="panel"><header><h2>Next class</h2></header>
           {nextSession ? <p>{nextSession.courses?.name ?? "Class"} · {nextSession.topic}<br/>{nextSession.venue} · {new Date(nextSession.starts_at).toLocaleString("en-GB", { timeZone: "Africa/Blantyre" })}{nextSession.meeting_link && <><br/><a className="btn teal join-lesson" href={nextSession.meeting_link} target="_blank" rel="noreferrer">Join lesson</a></>}</p> : <p>No upcoming classes scheduled.</p>}
@@ -53,6 +53,7 @@ export default async function PortalHome({ params }: { params: Promise<{ portal:
         <div className="panel"><header><h2>Quick actions</h2></header>
           <div className="quick">
             <Link href="/portal/applications"><span>My applications</span><ArrowRight size={16}/></Link>
+            <Link href="/portal/assignments"><span>Assignments</span><ArrowRight size={16}/></Link>
             <Link href="/portal/library"><span>Student library</span><ArrowRight size={16}/></Link>
             <Link href="/portal/profile"><span>My profile</span><ArrowRight size={16}/></Link>
           </div>

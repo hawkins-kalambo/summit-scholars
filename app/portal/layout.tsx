@@ -25,6 +25,8 @@ export default async function PortalLayout({ children }: { children: ReactNode }
       ...portals.filter(portal => canEnterPortal(account.roles, account.status, portal)).map(portal => ({ href: "/portal/home/" + portal, label: portalLabels[portal] + " portal", icon: "home" as const })),
       { href: "/portal/profile", label: "My profile", icon: "profile" as const },
       { href: "/portal/applications", label: "Applications", icon: "applications" as const },
+      { href: "/portal/announcements", label: "Announcements", icon: "announcements" as const },
+      ...(active && (account.roles.includes("student") || account.roles.includes("tutor")) ? [{ href: "/portal/messages", label: "Messages", icon: "messages" as const }] : []),
       ...(account.roles.includes("student") ? [{ href: "/portal/library", label: "Library", icon: "library" as const }, { href: "/portal/assignments", label: "Assignments", icon: "assignments" as const }] : []),
       ...(active && account.roles.includes("tutor") ? [{ href: "/portal/tutor", label: "Tutor workspace", icon: "tutor" as const }, { href: "/portal/tutor/assignments", label: "Assignments", icon: "assignments" as const }, { href: "/portal/tutor/pay", label: "My pay", icon: "finance" as const }] : []),
     ] },

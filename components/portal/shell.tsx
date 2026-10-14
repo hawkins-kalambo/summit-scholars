@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import {
   LayoutDashboard, UserCircle, FileText, GraduationCap, Users, BookOpen,
   ShieldCheck, ClipboardList, UserCog, School, Settings, Mail, ClipboardCheck, Presentation, Wallet, UserPlus, AlertTriangle, KeyRound, FileCheck,
+  Megaphone, MessageSquare,
   Menu, X, LogOut,
 } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
@@ -14,6 +15,7 @@ const icons = {
   staff: Users, library: BookOpen, manageLibrary: ShieldCheck, audit: ClipboardList,
   users: UserCog, universities: School, settings: Settings, notifications: Mail, enrolments: ClipboardCheck,
   tutor: Presentation, finance: Wallet, recruitment: UserPlus, attendanceRisk: AlertTriangle, security: KeyRound, assignments: FileCheck,
+  announcements: Megaphone, messages: MessageSquare,
 } as const;
 export type NavItem = { href: string; label: string; icon: keyof typeof icons };
 export type NavGroup = { label: string; items: NavItem[] };
